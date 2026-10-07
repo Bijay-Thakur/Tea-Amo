@@ -1,5 +1,5 @@
 import { json, text, redirect, readJson } from './http.js';
-import { configured } from './supabase.js';
+import { configured, uploadMenuImageObject, deleteMenuImageObject } from './supabase.js';
 import { establish, applySession, homeFor, loginResponse, logoutResponse, requireRole } from './session.js';
 import { passwordGrant, rest, rpc } from './supabase.js';
 import {
@@ -107,6 +107,44 @@ async function adminState(request, env, session) {
   return json({ error: 'Method not allowed' }, 405);
 }
 
+function decodeImage(data) {
+  const clean = String(data || '').replace(/^data:[^;]+;base64,/, '').replace(/\s/g, '');
+  const binary = atob(clean);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function imageKind(bytes) {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'image/png';
+  if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'image/webp';
+  return '';
+}
+
+async function menuImageRequest(request, env) {
+  try {
+    const body = await readJson(request, 3 * 1024 * 1024);
+    if (request.method === 'DELETE') {
+      const removed = await deleteMenuImageObject(env, body.image_url || '');
+      return json({ ok: removed }, removed ? 200 : 404);
+    }
+    const menuId = String(body.menu_id || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
+    if (!menuId) return json({ error: 'Choose a menu item before uploading a photo.' }, 400);
+    const bytes = decodeImage(body.data_base64);
+    if (!bytes.length || bytes.length > 1.5 * 1024 * 1024) return json({ error: 'Use a photo under 1.5 MB.' }, 400);
+    const kind = imageKind(bytes);
+    if (!kind) return json({ error: 'Use a JPG, PNG, or WebP image.' }, 400);
+    const ext = kind === 'image/png' ? 'png' : kind === 'image/webp' ? 'webp' : 'jpg';
+    const previous = body.previous_url || '';
+    const imageUrl = await uploadMenuImageObject(env, `${menuId}/${Date.now()}.${ext}`, bytes, kind);
+    if (previous && previous !== imageUrl) await deleteMenuImageObject(env, previous);
+    return json({ image_url: imageUrl });
+  } catch (error) {
+    return json({ error: error.message || 'Image upload failed' }, error.status || 500);
+  }
+}
+
 async function handleOps(request, env, path) {
   const auth = await requireRole(request, env, null);
   if (auth.error) return json({ error: auth.error }, auth.status);
@@ -149,6 +187,9 @@ async function handleAdmin(request, env, path) {
   const auth = await requireRole(request, env, 'admin');
   if (auth.error) return json({ error: auth.error }, auth.status);
   if (path === '/api/admin/state') return applySession(await adminState(request, env, auth.session), request, auth.session);
+  if (path === '/api/admin/menu-images' && (request.method === 'POST' || request.method === 'DELETE')) {
+    return applySession(await menuImageRequest(request, env), request, auth.session);
+  }
   if (path === '/api/admin/servers' && request.method === 'GET') return json({ servers: await listServers(env) });
   if (path === '/api/admin/servers' && request.method === 'POST') {
     try {

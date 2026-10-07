@@ -1,0 +1,612 @@
+/* Calm admin pages: Business Day, Customers, Recipes, Staff, Owner Funds, menu photos. */
+
+.ops-offscreen {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  border: 0 !important;
+}
+
+body.clay .ops-page {
+  display: none;
+}
+
+body.clay .ops-page.active {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+body.clay .ops-page section {
+  display: block;
+}
+
+body.clay .ops-page .card {
+  border: 1px solid #ececea;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(22, 22, 22, 0.04);
+}
+
+body.clay .ops-page h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+body.clay .ops-page h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+body.clay .ops-page p,
+body.clay .ops-hint {
+  margin: 2px 0 0;
+  color: #8a8a86;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+body.clay .ops-card-head,
+body.clay .ops-inline,
+body.clay .ops-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+body.clay .ops-card-head {
+  margin-bottom: 12px;
+}
+
+body.clay .ops-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.8fr);
+  gap: 14px;
+  align-items: start;
+}
+
+body.clay .ops-recipes {
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.2fr);
+}
+
+body.clay .ops-staff {
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.7fr);
+}
+
+body.clay .ops-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+body.clay .ops-kpis-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+body.clay .ops-kpi {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 84px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid #f0f0ee;
+  box-shadow: 0 8px 20px rgba(22, 22, 22, 0.04);
+}
+
+body.clay .ops-kpi small {
+  display: block;
+  color: #8a8a86;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+body.clay .ops-kpi b {
+  display: block;
+  margin-top: 2px;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+}
+
+body.clay .ops-kpi em {
+  display: block;
+  color: #8a8a86;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+body.clay .ops-kpi-ico {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #f4f4f2;
+  font-weight: 900;
+}
+
+body.clay .ops-kpi.blue { background: #f3f7ff; }
+body.clay .ops-kpi.green { background: #f1faf4; }
+body.clay .ops-kpi.peach { background: #fff6ee; }
+body.clay .ops-kpi.lilac { background: #f6f4ff; }
+body.clay .ops-kpi.mint { background: #f3fbf7; }
+body.clay .ops-kpi.rose { background: #fff5f5; }
+body.clay .ops-kpi.blue .ops-kpi-ico { background: #e5eeff; color: #3b6fd8; }
+body.clay .ops-kpi.green .ops-kpi-ico { background: #e3f6ea; color: #2f8a4e; }
+body.clay .ops-kpi.peach .ops-kpi-ico { background: #ffe8d4; color: #d87a2a; }
+body.clay .ops-kpi.lilac .ops-kpi-ico { background: #ece7ff; color: #6d5bd0; }
+body.clay .ops-kpi.mint .ops-kpi-ico { background: #e5f6ee; color: #2f8a4e; }
+body.clay .ops-kpi.rose .ops-kpi-ico { background: #ffe4e4; color: #d64545; }
+
+body.clay .ops-status {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+body.clay .ops-stat {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #f7f7f5;
+}
+
+body.clay .ops-stat small {
+  color: #8a8a86;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+body.clay .ops-stat b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 18px;
+}
+
+body.clay .ops-stat.open { background: #eef8f1; }
+body.clay .ops-stat.wait { background: #fff4ea; }
+body.clay .ops-stat.shut { background: #f6f6f4; }
+
+body.clay .ops-block {
+  padding-top: 14px;
+  margin-top: 8px;
+  border-top: 1px solid #f0f0ee;
+}
+
+body.clay .ops-finalize {
+  background: #fff;
+}
+
+body.clay .ops-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+  color: #6d6d6d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+body.clay .ops-field input,
+body.clay .ops-field select,
+body.clay .ops-field textarea,
+body.clay .ops-page .ops-inline > input,
+body.clay .ops-page .ops-inline > select,
+body.clay #recipes > .ops-split input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #ececea;
+  border-radius: 12px;
+  background: #fafafa;
+  color: #161616;
+  font-weight: 700;
+}
+
+body.clay .ops-grow { flex: 1; }
+
+body.clay .ops-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+body.clay .ops-form-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+body.clay .ops-tabs,
+body.clay .ops-seg,
+body.clay .ops-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+body.clay .ops-tabs {
+  background: #fff;
+  width: fit-content;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid #ececea;
+}
+
+body.clay .ops-tabs button,
+body.clay .ops-seg button,
+body.clay .ops-chips button {
+  border: 0;
+  background: transparent;
+  color: #161616;
+  border-radius: 999px;
+  min-height: 36px;
+  padding: 0 14px;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+body.clay .ops-tabs button.on,
+body.clay .ops-seg button.on,
+body.clay .ops-chips button.on {
+  background: #161616;
+  color: #fff;
+}
+
+body.clay #recipeCats {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+body.clay #recipeCats button {
+  flex: 0 0 auto;
+}
+
+body.clay .ops-seg {
+  background: #f6f6f4;
+  padding: 4px;
+  border-radius: 14px;
+  width: fit-content;
+}
+
+body.clay .ops-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e23d3d;
+  color: #fff;
+  font-size: 11px;
+}
+
+body.clay .ops-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 800;
+  background: #f3f3f1;
+  color: #5f5f5c;
+}
+
+body.clay .ops-chip.green { background: #e7f6ec; color: #247a45; }
+body.clay .ops-chip.orange { background: #fff1e4; color: #c26a12; }
+body.clay .ops-chip.blue { background: #e8f1ff; color: #2f62c4; }
+body.clay .ops-chip.rose { background: #ffe8e8; color: #c53434; }
+body.clay .ops-chip.gray { background: #f3f3f1; color: #6d6d6d; }
+
+body.clay .ops-chip i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+
+body.clay .ops-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+body.clay .ops-table th {
+  background: transparent;
+  color: #9a9a96;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 8px 10px;
+}
+
+body.clay .ops-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #f3f3f1;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+body.clay .ops-table .num,
+body.clay .ops-sum b,
+body.clay .ops-lines b {
+  font-variant-numeric: tabular-nums;
+}
+
+body.clay .ops-rowlink {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-weight: 800;
+  color: inherit;
+  text-align: left;
+}
+
+body.clay .ops-sum,
+body.clay .ops-lines > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  color: #3a3a38;
+  font-weight: 700;
+}
+
+body.clay .ops-sum.total,
+body.clay .ops-line-total {
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f7f4ee;
+  font-weight: 900;
+}
+
+body.clay .ops-sum.quiet { color: #6d6d6d; }
+
+body.clay .ops-actions { margin-top: 14px; }
+body.clay .ops-actions .btn { flex: 1; }
+
+body.clay .ops-recipe-list,
+body.clay .ops-today,
+body.clay .ops-page .scroll {
+  max-height: min(62vh, 720px);
+}
+
+body.clay .ops-recipe-list {
+  display: grid;
+  gap: 8px;
+  overflow: auto;
+  margin-top: 10px;
+  padding-right: 2px;
+}
+
+body.clay .ops-recipe {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #f0f0ee;
+  background: #fff;
+  border-radius: 16px;
+  padding: 8px;
+}
+
+body.clay .ops-recipe.on {
+  border-color: #f0b429;
+  box-shadow: 0 0 0 2px rgba(240, 180, 41, 0.25);
+}
+
+body.clay .ops-thumb,
+body.clay .ops-thumb.empty,
+body.clay .menu-admin-photo {
+  width: 72px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #f3f3f1;
+}
+
+body.clay .ops-thumb.empty,
+body.clay .menu-admin-photo.empty {
+  display: grid;
+  place-items: center;
+  color: #9a9a96;
+  font-weight: 900;
+}
+
+body.clay .ops-recipe b,
+body.clay .ops-person b { display: block; }
+body.clay .ops-recipe small,
+body.clay .ops-person small { color: #8a8a86; font-weight: 700; }
+
+body.clay .ops-builder-stats {
+  display: grid;
+  grid-template-columns: 88px repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+body.clay .ops-builder-stats > div,
+body.clay .ops-cost {
+  border-radius: 14px;
+  background: #f7f7f5;
+  padding: 10px 12px;
+}
+
+body.clay .ops-builder-stats small,
+body.clay .ops-cost small {
+  display: block;
+  color: #8a8a86;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+body.clay .ops-cost {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+body.clay .ops-cost .hi { background: #eef4ff; }
+body.clay .ops-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f3fbf6;
+  color: #2f6b45;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+body.clay .ops-empty {
+  padding: 28px 8px;
+  text-align: center;
+}
+
+body.clay .ops-empty b { display: block; margin-bottom: 8px; }
+
+body.clay .ops-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.clay .ops-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #f3f3f1;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+body.clay .ops-today {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+}
+
+body.clay .ops-today-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f3f1;
+}
+
+body.clay .ops-kebab { position: relative; }
+body.clay .ops-kebab-btn {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-weight: 900;
+  color: #161616;
+}
+body.clay .ops-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  min-width: 180px;
+  padding: 6px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+body.clay .ops-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+  min-height: 36px;
+  padding: 0 10px;
+  font-weight: 800;
+}
+body.clay .ops-menu button:hover { background: #f6f6f4; }
+body.clay .ops-menu button.danger { color: #b42318; }
+
+body.clay .ops-link {
+  border: 0;
+  background: transparent;
+  font-weight: 800;
+  color: #b42318;
+}
+
+body.clay .ops-trash {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff1f1;
+  color: #c53434;
+  font-weight: 900;
+}
+
+body.clay .ops-menu-cell {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+body.clay .ops-menu-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+body.clay .ops-dialog { width: min(560px, 96vw); }
+body.clay .ops-dialog .ops-field { margin-top: 10px; }
+body.clay .ops-dialog textarea { min-height: 88px; resize: vertical; }
+body.clay .ops-detail-list { margin: 8px 0 0; padding: 0; list-style: none; }
+body.clay .ops-detail-list li { padding: 6px 0; border-bottom: 1px solid #f3f3f1; font-size: 13px; }
+
+body.clay .ops-good { color: #247a45; }
+body.clay .ops-bad { color: #b42318; }
+
+@media (max-width: 1280px) {
+  body.clay .ops-kpis,
+  body.clay .ops-kpis-3,
+  body.clay .ops-split,
+  body.clay .ops-recipes,
+  body.clay .ops-staff,
+  body.clay .ops-status,
+  body.clay .ops-builder-stats,
+  body.clay .ops-cost {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  body.clay .ops-kpis,
+  body.clay .ops-kpis-3,
+  body.clay .ops-split,
+  body.clay .ops-recipes,
+  body.clay .ops-staff,
+  body.clay .ops-status,
+  body.clay .ops-builder-stats,
+  body.clay .ops-cost {
+    grid-template-columns: 1fr;
+  }
+}

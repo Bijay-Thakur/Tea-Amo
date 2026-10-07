@@ -46,10 +46,11 @@ function repairState(s){
   oldIng.forEach(i=>{if(i.name&&!seedNames.has(i.name.toLowerCase()))s.ingredients.push({key:i.key||slugKey(i.name),name:i.name,unit:i.unit||'g',stock:Number(i.stock||0),avg_cost:Number(i.avg_cost||0),reorder:Number(i.reorder||0),target:Number(i.target||0),shelf_life_days:Number(i.shelf_life_days||0),preferred_vendor_id:i.preferred_vendor_id||null,notes:i.notes||'',active:i.active!==false})});
   // Always guarantee complete standard recipes. Preserve valid user recipe edits when stored in new format.
   s.recipes=s.recipes&&typeof s.recipes==='object'?s.recipes:{};
+  if(!s.recipeCleared||typeof s.recipeCleared!=='object'||Array.isArray(s.recipeCleared))s.recipeCleared={};
   for(const [name,seedRecipe] of Object.entries(RECIPE_SEED)){
     const r=Array.isArray(s.recipes[name])?s.recipes[name]:seedRecipe;
     s.recipes[name]=r.filter(x=>x&&x.ingredient_key&&Number.isFinite(Number(x.qty))).map(x=>({ingredient_key:x.ingredient_key,qty:Number(x.qty)}));
-    if(!s.recipes[name].length)s.recipes[name]=clone(seedRecipe);
+    if(!s.recipes[name].length&&!s.recipeCleared[name])s.recipes[name]=clone(seedRecipe);
   }
   for(const k of ['staff','attendance','bills','vendors','purchases','waste','expenses','customers','complaints','accountTransfers','inventoryLog','businessDays','auditLog','cart','ownerCapital','dailyBusinessReports'])if(!Array.isArray(s[k]))s[k]=[];
   s.menu.forEach(m=>{if(!Array.isArray(s.recipes[m.name]))s.recipes[m.name]=[]});
@@ -142,7 +143,7 @@ async function pushLanConfig(){
     const payload={
       business:{name:state.business.name,branch:state.business.branch,currency:state.business.currency,taxRate:Number(state.business.taxRate||0),payment_qr:state.business.payment_qr||{},payment_methods:(state.business.payment_methods||[]).map(x=>typeof x==='string'?{name:x,kind:'other'}:{name:x.name,kind:x.kind||'other'})},
       tables:state.tables.filter(t=>t.active).map(t=>({id:t.id,name:t.name,seats:t.seats,x:t.x,y:t.y,w:t.w,h:t.h,kind:t.kind,active:t.active})),
-      menu:state.menu.filter(m=>m.active!==false).map(m=>({id:m.id,name:m.name,category:m.category,price:m.price,active:m.active!==false})),
+      menu:state.menu.filter(m=>m.active!==false).map(m=>({id:m.id,name:m.name,category:m.category,price:m.price,active:m.active!==false,image_url:/^https?:/i.test(m.image_url||'')?m.image_url:''})),
       staff:enabledStaff
     };
     await lanFetch('/api/admin/config',{method:'POST',body:JSON.stringify(payload)});
@@ -817,7 +818,7 @@ function renderStaff(){
   $('staffKpiHours').textContent=totalHours.toFixed(1)+' h';
   $('staffKpiPayroll').textContent=rs(payroll);
 
-  $('staffCards').innerHTML=list.length?list.map(s=>{
+  if($('staffCards'))$('staffCards').innerHTML=list.length?list.map(s=>{
     const h=staffMonthHours(s);
     return `<div class="statbox" style="background:#fff;border:1px solid var(--line)">
       <div class="floor-head" style="margin-bottom:8px">
@@ -1064,7 +1065,7 @@ function renderCustomers(){
   const rows=(state.complaints||[]).slice().sort((a,b)=>new Date(b.time)-new Date(a.time));const open=rows.filter(x=>x.status!=='closed').length;if($('complaintOpenBadge'))$('complaintOpenBadge').textContent=`${open} open`;
   if($('complaintBody'))$('complaintBody').innerHTML=rows.map(x=>`<tr><td>${nptDateTime(x.time)}</td><td><b>${esc(x.customer_name||'Walk-in')}</b></td><td>${esc(x.phone||'')}</td><td style="min-width:220px">${esc(x.text||'')}</td><td><span class="complaint-${esc(x.priority||'medium')}">${esc((x.priority||'medium').toUpperCase())}</span></td><td><select onchange="updateComplaintStatus('${esc(String(x.id))}',this.value)"><option value="open" ${x.status==='open'?'selected':''}>Open</option><option value="followup" ${x.status==='followup'?'selected':''}>Follow-up</option><option value="resolved" ${x.status==='resolved'?'selected':''}>Resolved</option><option value="closed" ${x.status==='closed'?'selected':''}>Closed</option></select></td><td><input value="${esc(x.resolution||'')}" placeholder="Resolution note" onchange="updateComplaintResolution('${esc(String(x.id))}',this.value)"></td><td><button class="btn small danger" onclick="deleteComplaint('${esc(String(x.id))}')">Delete</button></td></tr>`).join('')||'<tr><td colspan="8" class="muted">No complaints recorded.</td></tr>';
 }
-function addCustomerComplaint(){const text=$('complaintText').value.trim();if(!text)return alert('Enter the complaint details.');const cid=Number($('complaintCustomer').value)||null,c=cid?index.customers.get(cid):null;state.complaints=state.complaints||[];state.complaints.unshift({id:'CMP-'+Date.now(),time:workingNowIso(),businessDay:businessDayKey(),customer_id:cid,customer_name:$('complaintName').value.trim()||c?.name||'Walk-in',phone:$('complaintPhone').value.trim()||c?.phone||'',text,priority:$('complaintPriority').value||'medium',status:'open',resolution:$('complaintResolution').value.trim()});$('complaintText').value=$('complaintResolution').value='';audit('customer_complaint',text.slice(0,80));saveSoon();renderCustomers()}
+function addCustomerComplaint(){const text=$('complaintText').value.trim();if(!text)return alert('Enter the complaint details.');const cid=Number($('complaintCustomer').value)||null,c=cid?index.customers.get(cid):null;state.complaints=state.complaints||[];state.complaints.unshift({id:'CMP-'+Date.now(),time:workingNowIso(),businessDay:businessDayKey(),customer_id:cid,customer_name:$('complaintName').value.trim()||c?.name||'Walk-in',phone:$('complaintPhone').value.trim()||c?.phone||'',text,priority:$('complaintPriority').value||'medium',status:'open',resolution:($('complaintResolution')?.value||'').trim(),followups:[]});$('complaintText').value='';if($('complaintResolution'))$('complaintResolution').value='';audit('customer_complaint',text.slice(0,80));saveSoon();renderCustomers()}
 function updateComplaintStatus(id,status){const x=(state.complaints||[]).find(c=>String(c.id)===String(id));if(!x)return;x.status=status;x.updatedAt=new Date().toISOString();saveSoon();renderCustomers()}
 function updateComplaintResolution(id,value){const x=(state.complaints||[]).find(c=>String(c.id)===String(id));if(!x)return;x.resolution=value;x.updatedAt=new Date().toISOString();saveSoon()}
 function deleteComplaint(id){if(!confirm('Delete this complaint record?'))return;state.complaints=(state.complaints||[]).filter(c=>String(c.id)!==String(id));saveSoon();renderCustomers()}
@@ -1588,10 +1589,10 @@ renderMenu=function(){
   const rows=state.menu.filter(m=>m.active!==false&&(!current||m.category===current)&&(!q||m.name.toLowerCase().includes(q)));
   if(!$('menuGrid'))return;
   $('menuGrid').innerHTML=rows.map(m=>{
-    const photo=m.image||m.photo||m.image_url||'';
+    const photo=typeof menuPhoto==='function'?menuPhoto(m):(m.image_url||m.image||m.photo||'');
     const ready=canMake(m);
     const mark=esc(String(m.name||'M').trim().charAt(0)||'M');
-    const visual=photo?`<img class="admin-pos-photo" alt="" src="${esc(photo)}">`:`<div class="admin-pos-photo empty" aria-hidden="true"><span>${mark}</span></div>`;
+    const visual=photo?`<img class="admin-pos-photo menu-photo" alt="" data-mark="${mark}" src="${esc(photo)}">`:`<div class="admin-pos-photo empty" aria-hidden="true"><span>${mark}</span></div>`;
     return `<article class="admin-pos-item">${visual}<div class="admin-pos-item-copy"><b>${esc(m.name)}</b><div class="admin-pos-item-price">${rs(m.price)}</div><div class="admin-pos-stock ${ready?'good':'warn'}">${ready?'In stock':'Check stock'}</div></div><button type="button" class="admin-pos-add" onclick="addCart(${Number(m.id)})">Add</button></article>`
   }).join('')||'<div class="admin-pos-empty">No menu items found.</div>'
 };
@@ -1667,7 +1668,7 @@ function renderDining(){const bills=diningBillsByPeriod(),vals=bills.map(b=>Numb
 function addCapitalMovement(){const amount=Number($('capitalAmount').value);if(!(amount>0))return alert('Enter an amount.');const type=$('capitalType').value,destination=$('capitalDestination').value,note=$('capitalNote').value.trim();state.ownerCapital.unshift({id:Date.now(),time:workingNowIso(),businessDay:businessDayKey(),type,destination,amount,note});$('capitalAmount').value=$('capitalNote').value='';audit('owner_capital',`${type} ${destination} ${amount}`);saveSoon();renderCapital()}
 function renderCapital(){
   const inv=state.ownerCapital.filter(x=>x.type==='investment').reduce((z,x)=>z+Number(x.amount||0),0),wd=state.ownerCapital.filter(x=>x.type==='withdrawal').reduce((z,x)=>z+Number(x.amount||0),0),cash=state.ownerCapital.filter(x=>x.destination==='Cash').reduce((z,x)=>z+(x.type==='withdrawal'?-1:1)*Number(x.amount||0),0);
-  $('capitalInvested').textContent=rs(inv);$('capitalWithdrawn').textContent=rs(wd);$('capitalNet').textContent=rs(inv-wd);$('capitalCash').textContent=rs(cash);
+  $('capitalInvested').textContent=rs(inv);$('capitalWithdrawn').textContent=rs(wd);$('capitalNet').textContent=rs(inv-wd);if($('capitalCash'))$('capitalCash').textContent=rs(cash);
   $('capitalBody').innerHTML=state.ownerCapital.map(x=>`<tr><td>${nptDateTime(x.time)}</td><td>${x.type==='investment'?'<span class="good">Investment</span>':'<span class="warn">Withdrawal</span>'}</td><td>${esc(x.destination)}</td><td>${x.type==='withdrawal'?'- ':''}${rs(x.amount)}</td><td>${esc(x.note||'')}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">No owner capital movements yet.</td></tr>';
   const ledger=moneyMovementLedger(),balances={Cash:0,Bank:0,Online:0};ledger.filter(x=>x.account in balances).forEach(x=>balances[x.account]+=(x.direction==='in'?1:-1)*x.amount);const total=balances.Cash+balances.Bank+balances.Online,payable=ledger.filter(x=>x.source==='Purchase'&&x.account==='Payable').reduce((a,b)=>a+b.amount,0),sales=ledger.filter(x=>x.source==='Sale').reduce((a,b)=>a+b.amount,0),expenses=ledger.filter(x=>x.source==='Expense').reduce((a,b)=>a+b.amount,0),purchases=ledger.filter(x=>x.source==='Purchase').reduce((a,b)=>a+b.amount,0);
   if($('balanceCash'))$('balanceCash').textContent=rs(balances.Cash||0);if($('balanceBank'))$('balanceBank').textContent=rs(balances.Bank||0);if($('balanceOnline'))$('balanceOnline').textContent=rs(balances.Online||0);if($('balanceTotal'))$('balanceTotal').textContent=rs(total);if($('balancePayable'))$('balancePayable').textContent=rs(payable);if($('balanceSales'))$('balanceSales').textContent=rs(sales);if($('balanceExpenses'))$('balanceExpenses').textContent=rs(expenses);if($('balancePurchases'))$('balancePurchases').textContent=rs(purchases);

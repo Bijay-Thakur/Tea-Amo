@@ -1,1 +1,25 @@
-<section id="recipes"><div class="grid g2"><div class="card"><div class="toolbar"><input id="recipeSearch" placeholder="Search menu..." style="flex:1"></div><div id="recipeList" class="menu-grid"></div></div><div class="card"><h2 id="recipeTitle">Select a menu item</h2><div class="notice">Every completed sale deducts the exact quantities defined here. Calibrate these standardized recipes to TEA AMO's actual kitchen portions.</div><div id="recipeEditor" class="muted">Choose a menu item.</div></div></div></section>
+<section id="recipes" class="ops-page">
+  <div class="ops-split ops-recipes">
+    <article class="card ops-card">
+      <header class="ops-card-head">
+        <div>
+          <h2>Menu Items</h2>
+          <p>Select a menu item to view or edit its recipe.</p>
+        </div>
+      </header>
+      <input id="recipeSearch" placeholder="Search menu items...">
+      <div id="recipeCats" class="ops-chips"></div>
+      <div id="recipeList" class="ops-recipe-list"></div>
+    </article>
+    <article class="card ops-card">
+      <header class="ops-card-head">
+        <div>
+          <h2 id="recipeTitle">Recipe Builder</h2>
+          <p id="recipeSubtitle">Choose a menu item.</p>
+        </div>
+        <button class="ops-link danger hidden" id="clearRecipeBtn" type="button" onclick="opsClearRecipe()">Clear Recipe</button>
+      </header>
+      <div id="recipeEditor" class="ops-muted">Choose a menu item.</div>
+    </article>
+  </div>
+</section>

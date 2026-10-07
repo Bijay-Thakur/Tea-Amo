@@ -1,10 +1,50 @@
-<section id="customers">
-  <div class="notice"><b>Customer Management</b> — customer records and complaint tracking are both available on this page. Complaints can be followed from Open → Follow-up → Resolved → Closed.</div>
-  <div class="card" style="margin-top:10px"><h2>Customers</h2><div class="toolbar"><input id="custName" placeholder="Customer name"><input id="custPhone" placeholder="Phone"><input id="custEmail" placeholder="Email"><button class="btn" id="addCustomer" onclick="fallbackAddCustomer()">Add Customer</button></div><div class="scroll"><table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Visits</th><th>Total Spend</th></tr></thead><tbody id="customerBody"></tbody></table></div></div>
-  <div class="card" style="margin-top:14px">
-    <div class="floor-head"><div><h2 style="margin:0">Customer Complaints</h2><div class="sub">Record, follow up, and close customer complaints.</div></div><div class="badge" id="complaintOpenBadge">0 open</div></div>
-    <div class="toolbar" style="margin-top:10px"><select id="complaintCustomer"><option value="">Walk-in / Other customer</option></select><input id="complaintName" placeholder="Customer name (optional)"><input id="complaintPhone" placeholder="Phone (optional)"><select id="complaintPriority"><option value="medium">Medium priority</option><option value="high">High priority</option><option value="low">Low priority</option></select></div>
-    <div class="toolbar"><input id="complaintText" placeholder="Complaint details" style="flex:2;min-width:260px"><input id="complaintResolution" placeholder="Resolution / follow-up note" style="flex:1;min-width:220px"><button class="btn" onclick="addCustomerComplaint()">Add Complaint</button></div>
-    <div class="scroll"><table><thead><tr><th>Date</th><th>Customer</th><th>Phone</th><th>Complaint</th><th>Priority</th><th>Status</th><th>Resolution</th><th></th></tr></thead><tbody id="complaintBody"></tbody></table></div>
+<section id="customers" class="ops-page">
+  <div class="ops-tabs" id="customerTabs">
+    <button type="button" data-tab="customers" class="on">Customers</button>
+    <button type="button" data-tab="complaints">Complaints <span id="complaintTabCount" class="ops-count hidden">0</span></button>
   </div>
+
+  <div id="customerWorkspace">
+    <div class="ops-kpis ops-kpis-3">
+      <article class="ops-kpi blue"><span class="ops-kpi-ico">◎</span><div><small>Total Customers</small><b id="custKpiTotal">0</b></div></article>
+      <article class="ops-kpi green"><span class="ops-kpi-ico">↻</span><div><small>Returning Customers</small><b id="custKpiReturning">0</b><em id="custKpiReturningPct"></em></div></article>
+      <article class="ops-kpi peach"><span class="ops-kpi-ico">＋</span><div><small>New Customers</small><b id="custKpiNew">0</b><em id="custKpiNewPct"></em></div></article>
+    </div>
+    <article class="card ops-card">
+      <header class="ops-card-head">
+        <div><h2>Customer Records</h2></div>
+        <div class="ops-inline">
+          <input id="custSearch" placeholder="Search by name, phone or email...">
+          <select id="custSegment"><option value="">All Customers</option><option value="returning">Returning</option><option value="new">New</option></select>
+          <button class="btn" type="button" onclick="openCustomerForm()">+ Add Customer</button>
+        </div>
+      </header>
+      <div class="scroll">
+        <table class="ops-table">
+          <thead><tr><th>Name</th><th>Phone</th><th>Visits</th><th>Total Spend</th><th>Last Visit</th><th></th></tr></thead>
+          <tbody id="customerBody"></tbody>
+        </table>
+      </div>
+    </article>
+  </div>
+
+  <div id="complaintWorkspace" class="hidden">
+    <article class="card ops-card">
+      <header class="ops-card-head">
+        <div><h2>Complaints</h2><p id="complaintOpenLabel">0 open</p></div>
+        <div class="ops-inline">
+          <input id="complaintSearch" placeholder="Search complaints...">
+          <select id="complaintStatusFilter"><option value="">All statuses</option><option value="open">Open</option><option value="followup">In Progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select>
+          <button class="btn" type="button" onclick="openComplaintForm()">+ Add Complaint</button>
+        </div>
+      </header>
+      <div class="scroll">
+        <table class="ops-table">
+          <thead><tr><th>Date</th><th>Customer</th><th>Priority</th><th>Status</th><th>Complaint</th><th>Resolution</th><th></th></tr></thead>
+          <tbody id="complaintBody"></tbody>
+        </table>
+      </div>
+    </article>
+  </div>
+  <button id="addCustomer" class="ops-offscreen" type="button">Add</button>
 </section>

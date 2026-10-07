@@ -1,13 +1,65 @@
-<section id="dayclose">
-    <div class="grid g2">
-      <div class="card"><h2>Business Day Control</h2>
-        <div class="notice">POS & Billing stays open until you close it manually. Use the controls below whenever you are ready; there is no automatic 9 PM shutdown.</div>
-        <div id="dayControl"></div>
-        <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
-        <h3>Opening Cash</h3><div class="toolbar"><input id="openingCash" type="number" min="0" step=".01" placeholder="Opening cash"><button class="btn" id="saveOpeningCash" onclick="saveOpeningCashNow()">Save</button></div>
-        <h3>POS & Billing Control</h3><div class="toolbar"><input id="closePassword" type="password" placeholder="Owner password"><button class="btn danger" id="closePosBilling" type="button" onclick="togglePosBilling(true)">Close POS & Billing</button><button class="btn alt" id="reopenPosBilling" type="button" onclick="togglePosBilling(false)">Reopen POS & Billing</button></div><div class="sub">Closing POS blocks new billing but does not erase orders or finalize the business day.</div><h3>Finalize Day</h3><div class="toolbar"><input id="actualCash" type="number" min="0" step=".01" placeholder="Actual cash counted"><input id="closeNote" placeholder="Closing note" style="flex:1"><button class="btn danger" id="finalizeDay" onclick="finalizeBusinessDay()">Finalize Day</button></div>
-        <div id="cashDiff" class="sub"></div>
+<section id="dayclose" class="ops-page">
+  <div id="dayWorkNotice"></div>
+  <div class="ops-split">
+    <article class="card ops-card">
+      <header class="ops-card-head">
+        <div>
+          <h2>Day Control</h2>
+          <p>Manage today’s business day and POS status.</p>
+        </div>
+      </header>
+      <div id="dayControl" class="ops-status"></div>
+
+      <div class="ops-block">
+        <h3>Opening Cash</h3>
+        <p>Cash in the drawer at the start of the day.</p>
+        <div id="openingCashView"></div>
+        <input id="openingCash" class="ops-offscreen" tabindex="-1" aria-hidden="true">
+        <button id="saveOpeningCash" class="ops-offscreen" type="button" onclick="saveOpeningCashNow()">Save</button>
       </div>
-      <div class="card"><h2>Live Z-Report</h2><div id="zLive"></div><div class="toolbar" style="margin-top:10px"><button class="btn" id="printZ">Print Z-Report</button><button class="btn alt" id="exportZ">Export CSV</button></div></div>
-    </div>
-  </section>
+
+      <div class="ops-block">
+        <h3>POS Control</h3>
+        <p>Close POS to stop new orders.</p>
+        <div class="ops-inline" id="posControlRow">
+          <label class="ops-field ops-pass">Owner password
+            <input id="closePassword" type="password" placeholder="Owner password" autocomplete="current-password">
+          </label>
+          <div id="posAction"></div>
+        </div>
+      </div>
+
+      <div class="ops-block ops-finalize">
+        <h3>Finalize Day</h3>
+        <p>Record the counted cash and lock the day.</p>
+        <div class="ops-inline">
+          <label class="ops-field">Actual cash counted
+            <input id="actualCash" type="number" min="0" step="0.01" placeholder="0">
+          </label>
+          <label class="ops-field ops-grow">Closing note
+            <input id="closeNote" placeholder="Optional">
+          </label>
+          <label class="ops-field">Owner password
+            <input id="finalizePassword" type="password" placeholder="Owner password" autocomplete="current-password">
+          </label>
+          <button class="btn danger" id="finalizeDay" type="button" onclick="finalizeBusinessDay()">Finalize Day</button>
+        </div>
+        <div id="cashDiff"></div>
+      </div>
+    </article>
+
+    <article class="card ops-card">
+      <header class="ops-card-head">
+        <div>
+          <h2>Today’s Summary</h2>
+          <p>Live Z-report from POS.</p>
+        </div>
+      </header>
+      <div id="zLive"></div>
+      <div class="ops-inline ops-actions">
+        <button class="btn" id="printZ" type="button">Print Z-Report</button>
+        <button class="btn alt" id="exportZ" type="button">Export CSV</button>
+      </div>
+    </article>
+  </div>
+</section>

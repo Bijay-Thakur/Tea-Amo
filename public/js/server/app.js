@@ -140,6 +140,12 @@ async function loadWorkspace() {
   updateBar();
 }
 
+function serverPhotoFallback(img) {
+  const fallback = document.createElement('div');
+  fallback.className = 'sv-photo';
+  fallback.textContent = img?.dataset?.mark || '';
+  img.replaceWith(fallback);
+}
 function renderCategoryChips() {
   const categories = [...new Set((cfg?.menu || []).map((item) => item.category || 'Menu'))];
   const current = $('category').value;
@@ -151,8 +157,9 @@ function renderMenu() {
   const category = $('category').value;
   const rows = cfg.menu.filter((item) => (!query || item.name.toLowerCase().includes(query)) && (!category || item.category === category));
   $('menu').innerHTML = rows.map((item) => {
-    const photo = item.image || item.photo || item.image_url || '';
-    const visual = photo ? `<img alt="" src="${esc(photo)}">` : `<div class="sv-photo" aria-hidden="true">${esc(String(item.name || 'M').trim().charAt(0) || 'M')}</div>`;
+    const photo = item.image_url || item.image || item.photo || '';
+    const mark = esc(String(item.name || 'M').trim().charAt(0) || 'M');
+    const visual = photo ? `<img alt="" data-mark="${mark}" src="${esc(photo)}" onerror="serverPhotoFallback(this)">` : `<div class="sv-photo" aria-hidden="true">${mark}</div>`;
     return `<article>${visual}<b>${esc(item.name)}</b><div class="muted">${esc(item.category || 'Menu')}</div><div>${money(item.price)}</div><button type="button" data-add="${esc(item.id)}">Add</button></article>`;
   }).join('') || '<div class="sv-empty">No menu items found.</div>';
 }

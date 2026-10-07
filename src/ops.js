@@ -217,7 +217,8 @@ export async function syncCatalog(env, state) {
     name: item.name,
     category: item.category || 'Menu',
     price: Number(item.price || 0),
-    active: item.active !== false
+    active: item.active !== false,
+    image_url: /^https?:\/\//i.test(item.image_url || '') ? item.image_url : ''
   }));
   const tables = (state.tables || []).map((table) => ({
     id: String(table.id),
@@ -248,7 +249,13 @@ export async function syncCatalog(env, state) {
     active: item.active !== false,
     record: { ...item, order_pin: undefined, order_pin_hash: undefined, order_pin_salt: undefined, order_pin_iterations: undefined }
   }));
-  await upsert(env, 'menu_items', menu, 'id');
+  try {
+    await upsert(env, 'menu_items', menu, 'id');
+  } catch (error) {
+    const message = String(error?.message || error);
+    if (!/image_url|schema cache|column/i.test(message)) throw error;
+    await upsert(env, 'menu_items', menu.map(({ image_url, ...row }) => row), 'id');
+  }
   await upsert(env, 'cafe_tables', tables, 'id');
   await upsert(env, 'ingredients', ingredients, 'key');
   await upsert(env, 'staff', staff, 'id');
@@ -256,14 +263,25 @@ export async function syncCatalog(env, state) {
   await upsert(env, 'recipes', recipeRows(state.recipes), 'menu_name,ingredient_key');
 }
 
+async function loadServerMenu(env, token) {
+  try {
+    return await rest(env, '/rest/v1/menu_items?active=eq.true&select=id,name,category,price,image_url&order=name.asc', { token });
+  } catch (error) {
+    const message = String(error?.message || error);
+    if (!/image_url|schema cache|column/i.test(message)) throw error;
+    return rest(env, '/rest/v1/menu_items?active=eq.true&select=id,name,category,price&order=name.asc', { token });
+  }
+}
+
 export async function workspaceForServer(env, token, profile) {
   const [menu, tables, orders, docRows] = await Promise.all([
-    rest(env, '/rest/v1/menu_items?active=eq.true&select=id,name,category,price&order=name.asc', { token }),
+    loadServerMenu(env, token),
     rest(env, '/rest/v1/cafe_tables?active=eq.true&select=id,name,seats,x,y,w,h,kind,attention,reservation,seated&order=name.asc', { token }),
     rest(env, '/rest/v1/live_orders?select=table_id,version,attention,guest_count,discount_type,discount_value,opened_at,order_ref,order_type,updated_by_name,updated_at,order_items(menu_item_id,qty,served_qty)', { token }),
     rest(env, '/rest/v1/business_documents?name=eq.master&select=data')
   ]);
   const business = docRows?.[0]?.data?.business || {};
+  const docMenu = new Map((docRows?.[0]?.data?.menu || []).map((item) => [String(item.id), /^https?:\/\//i.test(item.image_url || '') ? item.image_url : '']));
   const methods = (business.payment_methods || []).map((item) => (typeof item === 'string' ? item : item.name)).filter(Boolean);
   return {
     staff: { id: profile.staff_id, name: profile.display_name, role: 'server_staff' },
@@ -275,7 +293,7 @@ export async function workspaceForServer(env, token, profile) {
       payment_methods: methods.length ? methods : ['Cash'],
       payment_qr: business.payment_qr || {}
     },
-    menu: (menu || []).map((item) => ({ ...item, id: numId(item.id), price: Number(item.price) })),
+    menu: (menu || []).map((item) => ({ ...item, id: numId(item.id), price: Number(item.price), image_url: item.image_url || docMenu.get(String(item.id)) || '' })),
     tables: tables || [],
     orders: Object.fromEntries((orders || []).map((order) => [order.table_id, {
       version: order.version,

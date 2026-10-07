@@ -1,16 +1,69 @@
-<section id="capital">
-    <div class="grid g2">
-      <div class="card"><h2>Owner Investment / Liquid Cash</h2><div class="notice">Owner money is tracked separately from customer sales revenue. This section also calculates recorded available balances from sales, expenses, purchases, investments and withdrawals.</div>
-        <div class="toolbar"><select id="capitalType"><option value="investment">Owner Investment</option><option value="withdrawal">Owner Withdrawal</option></select><select id="capitalDestination"><option>Cash</option><option>Bank</option><option>Online</option></select><input id="capitalAmount" type="number" min="0" step=".01" placeholder="Amount"><input id="capitalNote" placeholder="Reason / note" style="flex:1"><button class="btn" onclick="addCapitalMovement()">Save</button></div>
-        <hr style="border:0;border-top:1px solid var(--line);margin:14px 0"><h3>Move Money Between Accounts</h3><div class="sub" style="margin-bottom:8px">Transfer recorded balance between Cash, Bank and Online without counting it as income or expense.</div><div class="toolbar"><select id="transferFrom"><option>Cash</option><option>Bank</option><option>Online</option></select><span>→</span><select id="transferTo"><option>Bank</option><option>Online</option><option>Cash</option></select><input id="transferAmount" type="number" min="0" step=".01" placeholder="Amount"><input id="transferNote" placeholder="Transfer note" style="flex:1"><button class="btn alt" onclick="addAccountTransfer()">Transfer</button></div>
+<section id="capital" class="ops-page">
+  <div class="ops-kpis">
+    <article class="ops-kpi green"><span class="ops-kpi-ico">₨</span><div><small>Cash Available</small><b id="balanceCash">Rs 0</b></div></article>
+    <article class="ops-kpi blue"><span class="ops-kpi-ico">▣</span><div><small>Bank Available</small><b id="balanceBank">Rs 0</b></div></article>
+    <article class="ops-kpi lilac"><span class="ops-kpi-ico">◈</span><div><small>Online Available</small><b id="balanceOnline">Rs 0</b></div></article>
+    <article class="ops-kpi peach"><span class="ops-kpi-ico">Σ</span><div><small>Total Available</small><b id="balanceTotal">Rs 0</b></div></article>
+    <article class="ops-kpi rose"><span class="ops-kpi-ico">◉</span><div><small>Net Owner Capital</small><b id="capitalNetTop">Rs 0</b></div></article>
+  </div>
+  <div class="ops-split">
+    <article class="card ops-card">
+      <header class="ops-card-head">
+        <div><h2>Record Movement</h2><p>Record owner investment, withdrawal or transfer between accounts.</p></div>
+      </header>
+      <div class="ops-seg" id="movementSeg">
+        <button type="button" data-move="investment" class="on">+ Owner Investment</button>
+        <button type="button" data-move="withdrawal">− Withdrawal</button>
+        <button type="button" data-move="transfer">⇄ Transfer</button>
       </div>
-      <div class="card"><h2>Capital Summary</h2><div class="grid g3"><div class="statbox"><div class="sub">Total Invested</div><b id="capitalInvested">Rs 0</b></div><div class="statbox"><div class="sub">Total Withdrawn</div><b id="capitalWithdrawn">Rs 0</b></div><div class="statbox"><div class="sub">Net Owner Capital</div><b id="capitalNet">Rs 0</b></div></div><div class="srow total"><span>Net Liquid Cash Added</span><span id="capitalCash">Rs 0</span></div></div>
+      <div class="ops-form">
+        <label class="ops-field" id="capitalAccountRow">Account
+          <select id="capitalDestination"><option>Cash</option><option>Bank</option><option>Online</option></select>
+        </label>
+        <div class="ops-inline hidden" id="transferAccountRow">
+          <label class="ops-field">From account
+            <select id="transferFrom"><option>Cash</option><option>Bank</option><option>Online</option></select>
+          </label>
+          <label class="ops-field">To account
+            <select id="transferTo"><option>Bank</option><option>Online</option><option>Cash</option></select>
+          </label>
+        </div>
+        <label class="ops-field">Amount
+          <input id="capitalAmount" type="number" min="0" step="0.01" placeholder="Rs">
+        </label>
+        <label class="ops-field">Note
+          <input id="capitalNote" placeholder="Optional">
+        </label>
+        <select id="capitalType" class="ops-offscreen" aria-hidden="true"><option value="investment">Owner Investment</option><option value="withdrawal">Owner Withdrawal</option></select>
+        <input id="transferAmount" class="ops-offscreen" tabindex="-1" aria-hidden="true">
+        <input id="transferNote" class="ops-offscreen" tabindex="-1" aria-hidden="true">
+        <div class="ops-form-action"><button class="btn" id="saveMovement" type="button" onclick="saveOwnerMovement()">Save Movement</button></div>
+      </div>
+    </article>
+    <article class="card ops-card">
+      <header class="ops-card-head"><div><h2>Capital Summary</h2><p>Owner capital and today’s activity.</p></div></header>
+      <div class="ops-lines">
+        <div><span>Total Invested</span><b id="capitalInvested">Rs 0</b></div>
+        <div><span>Total Withdrawn</span><b id="capitalWithdrawn">Rs 0</b></div>
+        <div class="ops-line-total"><span>Net Owner Capital</span><b id="capitalNet">Rs 0</b></div>
+        <div><span>Today’s Change</span><b id="capitalToday">Rs 0</b></div>
+      </div>
+    </article>
+  </div>
+  <article class="card ops-card">
+    <header class="ops-card-head">
+      <div><h2>Recent Movements</h2><p>Owner investments, withdrawals and transfers.</p></div>
+      <div class="ops-inline">
+        <select id="movementTypeFilter" onchange="renderCapital()"><option value="">All Types</option><option value="investment">Investment</option><option value="withdrawal">Withdrawal</option><option value="transfer">Transfer</option></select>
+        <select id="movementAccountFilter" onchange="renderCapital()"><option value="">All Accounts</option><option>Cash</option><option>Bank</option><option>Online</option></select>
+        <select id="movementRangeFilter" onchange="renderCapital()"><option value="30">Last 30 Days</option><option value="7">Last 7 Days</option><option value="90">Last 90 Days</option><option value="all">All</option></select>
+      </div>
+    </header>
+    <div class="scroll">
+      <table class="ops-table">
+        <thead><tr><th>Date</th><th>Type</th><th>Account</th><th>Amount</th><th>Note</th></tr></thead>
+        <tbody id="capitalBody"></tbody>
+      </table>
     </div>
-    <div class="card" style="margin-top:14px">
-      <div class="floor-head"><div><h2 style="margin:0">Available Balance</h2><div class="sub">Calculated from recorded money-in and money-out movements.</div></div><span class="badge">Live ledger</span></div>
-      <div class="balance-grid" style="margin-top:10px"><div class="statbox"><div class="sub">Cash Available</div><b id="balanceCash">Rs 0</b></div><div class="statbox"><div class="sub">Bank Available</div><b id="balanceBank">Rs 0</b></div><div class="statbox"><div class="sub">Online Available</div><b id="balanceOnline">Rs 0</b></div><div class="statbox"><div class="sub">Total Available</div><b id="balanceTotal">Rs 0</b></div></div><div class="srow" style="margin-top:10px"><span>Outstanding Credit Purchases / Payables</span><b id="balancePayable">Rs 0</b></div>
-      <div class="grid g3" style="margin-top:10px"><div class="statbox"><div class="sub">Sales Inflow</div><b id="balanceSales">Rs 0</b></div><div class="statbox"><div class="sub">Expenses Outflow</div><b id="balanceExpenses">Rs 0</b></div><div class="statbox"><div class="sub">Purchase Outflow</div><b id="balancePurchases">Rs 0</b></div></div>
-    </div>
-    <div class="card" style="margin-top:14px"><h2>Owner Capital Movements</h2><div class="scroll"><table><thead><tr><th>Date</th><th>Type</th><th>Destination</th><th>Amount</th><th>Note</th></tr></thead><tbody id="capitalBody"></tbody></table></div></div>
-    <div class="card" style="margin-top:14px"><div class="floor-head"><div><h2 style="margin:0">Money Movement Ledger</h2><div class="sub">Combined view of sales receipts, expenses, purchases and owner movements.</div></div><select id="moneyLedgerFilter" onchange="renderCapital()"><option value="all">All movements</option><option value="in">Money in</option><option value="out">Money out</option></select></div><div class="scroll"><table><thead><tr><th>Date</th><th>Direction</th><th>Source</th><th>Account</th><th>Amount</th><th>Reference / Note</th></tr></thead><tbody id="moneyLedgerBody"></tbody></table></div></div>
-  </section>
+  </article>
+</section>

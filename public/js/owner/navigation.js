@@ -7,7 +7,7 @@
     staff: ['Staff & Attendance', 'Manage team members, attendance and staff access.'],
     servers: ['Servers', 'Create and manage accounts that can sign in to the Server workspace.'],
     inventory: ['Inventory', 'Track kitchen and bar stock with clear movement records.'],
-    recipes: ['Recipes', 'Connect menu items to ingredient usage and automatic stock deduction.'],
+    recipes: ['Recipes', 'Map menu items to ingredients for stock deduction and food cost.'],
     wastage: ['Wastage', 'Record stock loss and understand its cost.'],
     vendors: ['Vendors', 'Keep supplier details and purchase history organized.'],
     expenses: ['Expenses', 'Record operating expenses and payment sources.'],
@@ -15,7 +15,7 @@
     reports: ['Reports & Sellers', 'Review sales, best sellers, least sellers and business trends.'],
     dailyreport: ['Daily Business Report', 'Select any calendar date to add, review or edit that day’s business.'],
     dining: ['Average Dining Time', 'Track table-wise dining duration and service patterns.'],
-    capital: ['Owner Funds & Cash', 'Track available balance, investment, withdrawals and money movement.'],
+    capital: ['Owner Funds & Cash', 'Track owner investments, withdrawals and transfers between accounts.'],
     settings: ['Settings & Backup', 'Business settings, payments, backup, recovery and reset controls.']
   };
 

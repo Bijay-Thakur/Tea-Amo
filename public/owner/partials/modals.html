@@ -103,9 +103,7 @@
 <div class="modal" id="attendanceModal">
   <div class="box" style="width:min(620px,96vw)">
     <h2 id="attendanceModalTitle">Add / Edit Shift</h2>
-    <div class="notice">
-      Times are entered in <b>Nepal time (NPT)</b>. Saving a correction immediately updates monthly hours and payroll estimates.
-    </div>
+    <div class="notice">Times use Nepal time. Owner password is required.</div>
     <div class="grid g2">
       <div>
         <div class="sub" style="margin-bottom:4px">Staff</div>
@@ -166,3 +164,56 @@
 </div></div>
 <div class="modal" id="mixedPaymentModal"><div class="box" style="width:min(620px,96vw)"><h2>Mixed Payment</h2><div class="notice">Enter the amount applied to each payment method. The applied total must equal the bill total.</div><div class="srow total"><span>Amount Due</span><span id="mixedDue">Rs 0</span></div><div class="paygrid" id="mixedPaymentFields"></div><div class="notice" id="mixedPreview" style="margin-top:12px"></div><div class="toolbar"><button class="btn" onclick="confirmMixedPayment()">Complete Payment</button><button class="btn alt" onclick="closeModal('mixedPaymentModal')">Cancel</button></div></div></div>
 <div class="modal" id="nonChargeModal"><div class="box" style="width:min(520px,96vw)"><h2>Owner Non-Chargeable Order</h2><div class="notice">The customer pays Rs 0. Inventory and order history are still recorded. Owner authorization is required.</div><select id="nonChargeReason" style="width:100%;margin-bottom:9px"><option>Owner Complimentary</option><option>Staff Meal</option><option>Customer Recovery</option><option>Promotion</option><option>Sampling</option><option>Wastage / Testing</option><option>Other</option></select><input id="nonChargeOther" placeholder="Additional note" style="width:100%;margin-bottom:9px"><input id="nonChargePassword" type="password" placeholder="Owner password" style="width:100%"><div class="toolbar" style="margin-top:12px"><button class="btn danger" onclick="confirmNonChargeable()">Authorize & Complete</button><button class="btn alt" onclick="closeModal('nonChargeModal')">Cancel</button></div></div></div>
+
+<div class="modal" id="customerModal"><div class="box ops-dialog">
+  <h2 id="customerModalTitle">Add Customer</h2>
+  <label class="ops-field">Name<input id="custName" placeholder="Customer name"></label>
+  <label class="ops-field">Phone<input id="custPhone" placeholder="Phone"></label>
+  <label class="ops-field">Email<input id="custEmail" type="email" placeholder="Optional"></label>
+  <label class="ops-field">Notes<textarea id="custNotes" placeholder="Optional"></textarea></label>
+  <div id="customerDetailExtra"></div>
+  <div class="toolbar"><button class="btn" type="button" onclick="saveCustomerForm()">Save Customer</button><button class="btn alt" type="button" onclick="closeModal('customerModal')">Cancel</button></div>
+</div></div>
+
+<div class="modal" id="complaintModal"><div class="box ops-dialog">
+  <h2>Add Complaint</h2>
+  <label class="ops-field">Customer<select id="complaintCustomer"><option value="">Walk-in</option></select></label>
+  <label class="ops-field">Name<input id="complaintName" placeholder="Walk-in name, if needed"></label>
+  <label class="ops-field">Phone<input id="complaintPhone" placeholder="Optional"></label>
+  <label class="ops-field">Priority<select id="complaintPriority"><option value="medium">Medium</option><option value="high">High</option><option value="low">Low</option></select></label>
+  <label class="ops-field">Complaint<textarea id="complaintText" placeholder="What happened?"></textarea></label>
+  <div class="toolbar"><button class="btn" type="button" onclick="saveComplaintForm()">Add Complaint</button><button class="btn alt" type="button" onclick="closeModal('complaintModal')">Cancel</button></div>
+</div></div>
+
+<div class="modal" id="complaintDetailModal"><div class="box ops-dialog">
+  <h2 id="complaintDetailTitle">Complaint</h2>
+  <div id="complaintDetailSummary"></div>
+  <label class="ops-field">Status<select id="complaintDetailStatus"><option value="open">Open</option><option value="followup">In Progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></label>
+  <label class="ops-field">Follow-up note<input id="complaintFollowup" placeholder="Optional note for this update"></label>
+  <label class="ops-field">Resolution<textarea id="complaintDetailResolution" placeholder="How it was resolved"></textarea></label>
+  <div id="complaintFollowupLog"></div>
+  <div class="toolbar"><button class="btn" type="button" onclick="saveComplaintDetail()">Save</button><button class="btn danger" type="button" onclick="deleteComplaintFromDetail()">Delete</button><button class="btn alt" type="button" onclick="closeModal('complaintDetailModal')">Close</button></div>
+</div></div>
+
+<div class="modal" id="attendanceHistoryModal"><div class="box" style="width:min(980px,96vw)">
+  <div class="ops-card-head"><div><h2>Attendance History</h2></div><button class="btn alt" type="button" onclick="openAttendanceEditor()">Add Shift</button></div>
+  <div class="ops-inline">
+    <select id="attendanceStaffFilter"><option value="">All staff</option></select>
+    <input id="attendanceMonthFilter" type="month">
+    <button class="btn alt" id="exportAttendance" type="button">Export CSV</button>
+  </div>
+  <div class="scroll">
+    <table class="ops-table">
+      <thead><tr><th>Date</th><th>Staff</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Note</th><th></th></tr></thead>
+      <tbody id="attendanceBody"></tbody>
+    </table>
+  </div>
+  <div class="toolbar"><button class="btn alt" type="button" onclick="closeModal('attendanceHistoryModal')">Close</button></div>
+</div></div>
+
+<div class="modal" id="staffEmergencyModal"><div class="box ops-dialog">
+  <h2 id="staffEmergencyTitle">Emergency Contact</h2>
+  <div id="staffEmergencyBody"></div>
+  <div class="toolbar"><button class="btn" type="button" id="staffEmergencyEdit">Edit Profile</button><button class="btn alt" type="button" onclick="closeModal('staffEmergencyModal')">Close</button></div>
+</div></div>
+
