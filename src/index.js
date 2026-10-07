@@ -6,7 +6,7 @@ import {
   assertLoginAllowed, clearLoginFailures, completePayment, createServerAccount, findLogin,
   listServers, loadOperational, markLogin, orderPayload, projectState,
   publicProfile, recordLoginFailure, resetServerPassword, rpcStatus, saveMaster, saveOrder,
-  reserveTable, seatTable, setServerActive, updateServer, workspaceForServer
+  reserveTable, seatTable, setServerActive, setTableAttention, updateServer, workspaceForServer
 } from './ops.js';
 
 const OWNER_SECTIONS = ['dashboard', 'pos', 'dayclose', 'staff', 'servers', 'menuadmin', 'inventory', 'recipes', 'wastage', 'vendors', 'expenses', 'capital', 'customers', 'dailyreport', 'reports', 'dining', 'settings'];
@@ -230,6 +230,7 @@ async function handleServer(request, env, path) {
       if (body.action === 'occupy') return json(await seatTable(env, id, true, auth.session.profile));
       if (body.action === 'leave') return json(await seatTable(env, id, false, auth.session.profile));
       if (body.action === 'reserve') return json(await reserveTable(env, id, body.reservation || null, auth.session.profile));
+      if (body.action === 'attention') return json(await setTableAttention(env, id, !!body.attention, auth.session.profile));
       return json({ error: 'Unknown table action' }, 400);
     } catch (error) {
       return json({ error: error.message || 'Could not update the table' }, error.status || 500);

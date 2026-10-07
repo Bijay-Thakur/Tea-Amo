@@ -1,6 +1,8 @@
 /* Claymorphism layer for the owner POS. Loaded after base.css. */
 
 body.clay {
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
   --bg: #f4f4f2;
   --panel: #fcfcfb;
   --panel2: #f3f3f1;
@@ -124,9 +126,11 @@ body.clay .top-stack {
   position: sticky;
   top: 0;
   z-index: 30;
-  background: #f4f4f2;
-  margin: 0;
-  padding: 6px 2px 16px;
+  background: #161616;
+  color: #f6f6f4;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 18px;
 }
 
 body.clay .top,
@@ -182,7 +186,32 @@ body.clay h1,
 body.clay h2,
 body.clay h3 {
   font-family: Nunito, "Segoe UI", sans-serif;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
+  color: #161616;
+  line-height: 1.25;
+}
+
+body.clay .top-stack h1,
+body.clay .top-stack .sub,
+body.clay .top-stack #clockText {
+  color: #f6f6f4;
+}
+
+body.clay .top-stack .sub,
+body.clay .top-stack #clockText {
+  color: #c9c9c6;
+}
+
+body.clay .top-stack .badge,
+body.clay .top-stack .quick-btn {
+  background: #2a2a2a;
+  color: #f6f6f4;
+  border: 1px solid #3a3a3a;
+  box-shadow: none;
+}
+
+body.clay .top-stack .quick-btn.primary {
+  background: #f4f4f2;
   color: #161616;
 }
 
@@ -277,20 +306,28 @@ body.clay .segbar button.active {
   border-radius: 999px;
   color: #fff;
   background: linear-gradient(180deg, #3a3a3a 0%, #161616 100%);
-  box-shadow: 0 7px 0 #000, 0 12px 16px rgba(0, 0, 0, 0.16);
-  transform: translateY(-1px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+  transform: none;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 body.clay .btn:hover,
 body.clay .quick-btn.primary:hover {
-  filter: brightness(1.03);
-  transform: translateY(-2px);
+  filter: brightness(1.08);
+  transform: none;
 }
 
 body.clay .btn:active,
 body.clay .quick-btn.primary:active {
-  transform: translateY(4px);
-  box-shadow: 0 2px 0 #000, 0 6px 10px rgba(0, 0, 0, 0.12);
+  transform: none;
+  box-shadow: none;
+}
+
+body.clay button:disabled,
+body.clay .btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
 }
 
 body.clay .btn.alt,
@@ -301,23 +338,23 @@ body.clay .mini {
   background: linear-gradient(180deg, #ffffff, #efefed);
   border: 3px solid rgba(255, 255, 255, 0.9);
   border-radius: 999px;
-  box-shadow: 0 6px 0 #d7d7d4, 0 10px 14px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 body.clay .btn.orange {
-  background: linear-gradient(180deg, #f0b48f, #e08a62);
-  box-shadow: 0 7px 0 #c56d48, 0 12px 16px rgba(160, 90, 50, 0.16);
+  background: linear-gradient(180deg, #e7a27c, #d4845c);
+  box-shadow: 0 1px 2px rgba(160, 90, 50, 0.2);
   color: #fffaf6;
 }
 
 body.clay .btn.danger {
-  background: linear-gradient(180deg, #e98980, #c85b54);
-  box-shadow: 0 7px 0 #a34640, 0 12px 16px rgba(160, 70, 60, 0.16);
+  background: linear-gradient(180deg, #d97870, #b5524c);
+  box-shadow: 0 1px 2px rgba(160, 70, 60, 0.2);
   color: #fffaf6;
 }
 
 body.clay .btn.small {
-  box-shadow: 0 4px 0 #d7d7d4;
+  box-shadow: none;
 }
 
 body.clay input,
@@ -403,9 +440,13 @@ body.clay .cafe-floor {
   box-shadow: 0 10px 0 #dededb, 0 18px 28px rgba(0, 0, 0, 0.08);
 }
 
-body.clay .floor-table {
-  border-radius: 18px;
-  backdrop-filter: blur(2px);
+body.clay .floor-table,
+body.clay .floor-table:hover {
+  border-radius: 16px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  filter: none;
+  transform: none;
 }
 
 body.clay .modal {
@@ -489,7 +530,7 @@ body.clay .chart-wrap canvas {
     border-radius: 22px;
     margin-bottom: 10px;
   }
-  body.clay .top-stack { position: static; }
+  body.clay .top-stack { top: 0; z-index: 25; }
   body.clay .brand { justify-content: flex-start; margin-bottom: 8px; padding-bottom: 8px; }
   body.clay .clay-mark { width: 42px; height: 42px; flex-basis: 42px; border-radius: 14px; }
   body.clay .brand b { font-size: 16px; }

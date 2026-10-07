@@ -392,6 +392,30 @@ export async function seatTable(env, tableId, seated, profile) {
   return { ok: true, id: tableId, name: table.name, seated: !!seated };
 }
 
+export async function setTableAttention(env, tableId, attention, profile) {
+  const table = await tableRow(env, tableId);
+  if (!table) throw Object.assign(new Error('Unknown table'), { status: 404 });
+  await rest(env, `/rest/v1/cafe_tables?id=eq.${encodeURIComponent(tableId)}`, {
+    method: 'PATCH',
+    prefer: 'return=minimal',
+    body: { attention: !!attention }
+  });
+  await rest(env, '/rest/v1/audit_events', {
+    method: 'POST',
+    prefer: 'return=minimal',
+    body: {
+      actor_id: profile?.id || null,
+      actor_role: profile?.role || 'server_staff',
+      actor_name: profile?.display_name || '',
+      action: attention ? 'TABLE_ATTENTION' : 'TABLE_ATTENTION_CLEARED',
+      entity: 'cafe_table',
+      entity_id: tableId,
+      metadata: { name: table.name }
+    }
+  });
+  return { ok: true, id: tableId, name: table.name, attention: !!attention };
+}
+
 export async function reserveTable(env, tableId, reservation, profile) {
   const table = await tableRow(env, tableId);
   if (!table) throw Object.assign(new Error('Unknown table'), { status: 404 });

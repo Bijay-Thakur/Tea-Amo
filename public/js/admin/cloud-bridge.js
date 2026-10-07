@@ -55,10 +55,12 @@
       if (flag) {
         const nextReservation = flag.reservation || null;
         const nextSeated = !!flag.seated;
+        const nextAttention = !!flag.attention;
         const sameReservation = JSON.stringify(table.reservation || null) === JSON.stringify(nextReservation);
-        if (!sameReservation || !!table.seated !== nextSeated) {
+        if (!sameReservation || !!table.seated !== nextSeated || !!table.attention !== nextAttention) {
           table.reservation = nextReservation;
           table.seated = nextSeated;
+          table.attention = nextAttention;
           changed.push(table.id);
         }
       }
@@ -66,7 +68,7 @@
       const remote = orders[table.id];
       const local = state.tableOrders[table.id];
       if (!remote || !remote.order) {
-        if (local && !lanPushTimers[table.id]) {
+        if (local && Number(local._lan_version || 0) > 0 && !lanPushTimers[table.id]) {
           delete state.tableOrders[table.id];
           table.attention = false;
           changed.push(table.id);
@@ -77,7 +79,7 @@
       const localVersion = Number(local?._lan_version || 0);
       if (remoteVersion !== localVersion) {
         state.tableOrders[table.id] = { ...remote.order, _lan_version: remoteVersion, _lan_updated_by: remote.updated_by || remote.order._lan_updated_by || '' };
-        table.attention = !!remote.attention;
+        table.attention = !!remote.attention || !!flag?.attention;
         changed.push(table.id);
       }
     }
@@ -211,14 +213,32 @@
     if (url) url.textContent = location.origin + '/server';
   };
 
+  async function flushTableOrder(tableId) {
+    clearTimeout(lanPushTimers[tableId]);
+    delete lanPushTimers[tableId];
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const result = await cloudFetch('/api/ops/orders/' + encodeURIComponent(tableId), { method: 'PUT', body: JSON.stringify(orderBody(tableId)) });
+        if (state.tableOrders[tableId] && result.version != null) state.tableOrders[tableId]._lan_version = Number(result.version || 0);
+        return result;
+      } catch (error) {
+        if (error.status !== 409 || attempt === 1) throw error;
+        const latest = await cloudFetch('/api/ops/orders/' + encodeURIComponent(tableId));
+        if (state.tableOrders[tableId]) state.tableOrders[tableId]._lan_version = Number(latest.version || 0);
+      }
+    }
+    return null;
+  }
+
   const localComplete = completeSelection;
   completeSelection = async function (selection, paymentInfo, opts = {}) {
     if (paymentKeys.get('busy')) throw new Error('A payment is already being confirmed.');
     paymentKeys.set('busy', true);
     const table = activeTableId && activeTableId !== 'counter' ? tableById(activeTableId) : null;
-    const order = typeof currentOrderMeta === 'function' ? currentOrderMeta() : null;
     const key = crypto.randomUUID();
     try {
+      if (table) await flushTableOrder(table.id);
+      const order = typeof currentOrderMeta === 'function' ? currentOrderMeta() : null;
       const result = await cloudFetch('/api/ops/payments', {
         method: 'POST',
         body: JSON.stringify({
@@ -305,17 +325,41 @@
   document.addEventListener('DOMContentLoaded', () => {
     const actions = document.querySelector('.top-actions');
     if (!actions || document.getElementById('cloudLogout')) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'admin-account';
     const button = document.createElement('button');
     button.className = 'quick-btn';
     button.id = 'cloudLogout';
     button.type = 'button';
-    button.textContent = 'Log out';
-    button.onclick = async () => {
+    button.textContent = 'Admin';
+    button.setAttribute('aria-haspopup', 'menu');
+    button.setAttribute('aria-expanded', 'false');
+    const menu = document.createElement('div');
+    menu.className = 'admin-account-menu hidden';
+    menu.id = 'adminAccountMenu';
+    menu.setAttribute('role', 'menu');
+    const logout = document.createElement('button');
+    logout.type = 'button';
+    logout.id = 'cloudLogoutAction';
+    logout.textContent = 'Log out';
+    logout.onclick = async () => {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
       try { await window.teaSupabase?.auth?.signOut(); } catch {}
       location.assign('/');
     };
-    actions.appendChild(button);
+    button.onclick = (event) => {
+      event.stopPropagation();
+      const open = menu.classList.toggle('hidden') === false;
+      button.setAttribute('aria-expanded', String(open));
+    };
+    document.addEventListener('click', () => {
+      menu.classList.add('hidden');
+      button.setAttribute('aria-expanded', 'false');
+    });
+    menu.appendChild(logout);
+    wrap.appendChild(button);
+    wrap.appendChild(menu);
+    actions.appendChild(wrap);
   });
 
   restoreSession().then(() => window.TEA_AMO_BOOT()).catch((error) => {

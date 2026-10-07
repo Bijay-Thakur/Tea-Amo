@@ -11,86 +11,162 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles/staff.css">
 <link rel="stylesheet" href="/styles/clay-staff.css">
-<link rel="stylesheet" href="/styles/server.css">
+<link rel="stylesheet" href="/styles/server.css?v=20261007-ux">
 </head>
 <body class="clay server-app">
-<div class="wrap">
-  <div class="card brand">
-    <div class="row between">
-      <div class="row"><img class="staff-logo" src="/assets/tea-amo-logo.png" alt="Tea Amo"><div><h1 class="top-title">TEA AMO</h1><div id="business" class="muted">Connecting…</div></div></div>
-      <button type="button" id="navToggle" class="nav-toggle" aria-expanded="false" aria-controls="navSheet">Menu</button>
+<div class="sv-app">
+  <header class="sv-head">
+    <div class="sv-brand">
+      <img class="staff-logo" src="/assets/tea-amo-logo.png" alt="Tea Amo">
+      <div><b>TEA AMO</b><div id="business" class="muted">Connecting…</div></div>
     </div>
-    <div id="navSheet" class="nav-sheet hidden">
-      <button type="button" data-nav="occupy">Table occupied</button>
-      <button type="button" data-nav="leave">Table left</button>
-      <button type="button" data-nav="reserve">Make reservation</button>
-      <button type="button" data-nav="add">Add item</button>
-      <button type="button" data-nav="pay">Take payment</button>
-    </div>
+    <button type="button" id="navToggle" class="sv-menu-btn" aria-expanded="false" aria-controls="navSheet">Menu</button>
+  </header>
+  <div id="navSheet" class="sv-pop hidden" role="menu">
+    <button type="button" data-go="profile">Profile</button>
+    <button type="button" id="reloadConfig">Refresh</button>
+    <button type="button" id="logout">Logout</button>
   </div>
-  <div id="app">
-    <div class="card"><div class="row between"><div><b id="who"></b><div class="muted">Tables and orders update on every signed-in screen.</div></div><div class="row"><button class="alt small" id="reloadConfig" type="button">Refresh</button><button class="alt small" id="logout" type="button">Logout</button></div></div></div>
-    <div id="tableView" class="card">
-      <div class="legend"><span><i class="dot-available"></i>Available</span><span><i class="dot-occupied"></i>Occupied</span><span><i class="dot-attention"></i>Attention</span><span><i class="dot-reserved"></i>Reserved</span></div>
+  <div id="offlineBanner" class="sv-offline hidden" role="status">Offline. Payments need a connection.</div>
+  <div id="toast" class="sv-toast" role="status"></div>
+
+  <main id="tableView">
+    <div class="sv-identity">
+      <b id="who">Server</b>
+      <div class="muted">Tables and orders update in real time.</div>
+    </div>
+    <section class="sv-card">
+      <div class="sv-floor-head">
+        <h2>Dining Floor</h2>
+        <div class="legend">
+          <span><i class="dot-available"></i>Available</span>
+          <span><i class="dot-occupied"></i>Occupied</span>
+          <span><i class="dot-attention"></i>Attention</span>
+          <span><i class="dot-reserved"></i>Reserved</span>
+        </div>
+      </div>
       <div class="cafe-floor" id="floor"></div>
-      <div id="tables" class="table-list"></div>
+    </section>
+    <section class="sv-list-block">
+      <div class="sv-list-head">
+        <h2>All Tables</h2>
+        <div id="tableFilters" class="sv-filters" role="tablist" aria-label="Filter tables"></div>
+      </div>
+      <div id="tables" class="sv-table-grid"></div>
+    </section>
+  </main>
+
+  <main id="orderView" class="hidden">
+    <div class="sv-page-head">
+      <div>
+        <h2 id="tableTitle">Table</h2>
+        <div id="orderStatus" class="muted">Synced</div>
+      </div>
+      <button class="sv-ghost" id="backTables" type="button">Change Table</button>
     </div>
-    <div id="orderView" class="hidden">
-      <div class="card"><div class="row between"><div><h2 id="tableTitle">Order</h2><div id="orderStatus" class="muted">—</div></div><button class="alt" id="backTables" type="button">Tables</button></div></div>
-      <div class="menu-toolbar"><div class="card"><div class="row"><input id="menuSearch" placeholder="Search menu" style="flex:1;min-width:0"><select id="category" style="flex:1;min-width:0"></select></div></div></div>
-      <div id="menu" class="grid menu-grid"></div>
+    <section class="sv-card" id="currentOrderCard">
+      <div class="sv-card-head"><b id="orderHeading">Current Order</b><span id="guestLabel" class="muted"></span></div>
+      <div class="sv-guest"><span>Guests</span><button type="button" id="guestMinus" aria-label="Fewer guests">−</button><b id="guestCountLabel">1</b><button type="button" id="guestPlus" aria-label="More guests">+</button></div>
+      <input id="guestCount" class="sv-sr" type="number" min="1" value="1">
+      <div id="cart"></div>
+    </section>
+    <label class="sv-search">Search menu items
+      <input id="menuSearch" placeholder="Search menu items..." aria-label="Search menu items">
+    </label>
+    <div id="categoryChips" class="sv-filters" role="tablist" aria-label="Menu categories"></div>
+    <select id="category" class="sv-sr" aria-hidden="true" tabindex="-1"></select>
+    <div id="menu" class="sv-menu"></div>
+  </main>
+
+  <main id="payView" class="hidden">
+    <div class="sv-page-head">
+      <div>
+        <h2 id="payTitle">Payment</h2>
+        <div id="paySync" class="muted">Synced</div>
+      </div>
+      <button class="sv-ghost" id="payBack" type="button">Order</button>
     </div>
+    <section class="sv-card">
+      <div class="sv-card-head"><b>Bill Summary</b><span id="payMeta" class="muted"></span></div>
+      <div class="summary">
+        <div class="sumrow"><span>Subtotal</span><b id="subtotal">Rs 0</b></div>
+        <div class="sumrow"><span>Discount</span><b id="discountAmount">- Rs 0</b></div>
+        <div class="sumrow"><span>Tax</span><b id="taxAmount">Rs 0</b></div>
+        <div class="sumrow total"><span>Total</span><span id="grandTotal">Rs 0</span></div>
+      </div>
+      <div class="sv-discount">
+        <span>Discount</span>
+        <select id="discountType" aria-label="Discount type"><option value="percent">Percent %</option><option value="amount">Amount</option></select>
+        <input id="discountValue" type="number" inputmode="decimal" min="0" step="0.01" value="0" aria-label="Discount value">
+      </div>
+    </section>
+    <section class="sv-card">
+      <b>Payment Method</b>
+      <select id="payment" class="sv-sr" aria-hidden="true" tabindex="-1"></select>
+      <div id="payMethods" class="sv-pay-grid" role="radiogroup" aria-label="Payment method"></div>
+      <div id="cashBox" class="sv-cash">
+        <label>Cash Received (Rs)
+          <input id="cashReceived" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Leave blank for exact">
+        </label>
+        <div id="changeBox" class="sv-change"><span>Change</span><b id="changeDue">Rs 0</b></div>
+      </div>
+      <div id="qrBox" class="sv-qr hidden">
+        <img id="payQr" alt="Payment QR">
+        <div id="qrNote" class="muted"></div>
+      </div>
+      <div id="billGateNote" class="muted">Print the bill, or skip it, before completing payment.</div>
+      <button id="completePay" type="button">Complete Payment</button>
+      <button id="saveOrder" class="sv-ghost" type="button">Save Order</button>
+      <div class="sv-utility">
+        <button class="sv-ghost" id="printBill" type="button">Print Bill</button>
+        <button class="sv-ghost" id="skipBill" type="button">Skip Bill</button>
+      </div>
+    </section>
+  </main>
+
+  <main id="profileView" class="hidden">
+    <section class="sv-card">
+      <h2 id="profileName">Server</h2>
+      <div id="profileBranch" class="muted"></div>
+      <p class="muted">Tables and orders stay synced with Administration and every other signed-in server.</p>
+      <button class="sv-ghost" id="profileRefresh" type="button">Refresh</button>
+      <button class="sv-ghost" id="profileLogout" type="button">Logout</button>
+    </section>
+  </main>
+
+  <div id="orderBar" class="sv-sticky hidden">
+    <div><b id="barCount">0 items</b><div id="barTotal">Rs 0</div></div>
+    <button type="button" id="barCheckout">Checkout</button>
+  </div>
+  <nav class="sv-tabs" aria-label="Server">
+    <button type="button" data-tab="tables" class="on">Tables</button>
+    <button type="button" data-tab="order" id="tabOrder">Current Order <span id="tabBadge" class="sv-badge hidden">0</span></button>
+    <button type="button" data-tab="profile">Profile</button>
+  </nav>
+</div>
+
+<div id="actionSheet" class="sv-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <button type="button" class="sv-backdrop" id="sheetBackdrop" aria-label="Close"></button>
+  <div class="sv-sheet-card">
+    <div class="sv-sheet-head"><div><h2 id="sheetTitle">Table</h2><div id="sheetMeta" class="muted"></div></div><button type="button" class="sv-ghost" id="sheetClose" aria-label="Close">Close</button></div>
+    <div id="sheetActions" class="sv-actions"></div>
   </div>
 </div>
-<div id="drawerBar" class="drawer-bar hidden"><div class="drawer-bar-inner"><div class="drawer-main"><b id="drawerTable">Current Order</b><div class="drawer-sub"><span id="drawerCount">0 items</span> · <span id="drawerTotal">Rs 0</span> · <span id="drawerUnsaved" class="sync-pill">Synced</span></div></div><button id="openDrawer" type="button" aria-label="Open current order">▲</button></div></div>
-<div id="orderDrawer" class="drawer hidden" role="dialog" aria-modal="true" aria-label="Current order">
-  <div class="drawer-head"><div><b id="drawerTitle">Current Order</b><div class="muted" id="drawerVersion">—</div></div><button class="alt" id="closeDrawer" type="button">▼ Close</button></div>
-  <div class="drawer-scroll">
-    <div id="cart"></div>
-    <div class="form-grid">
-      <label>Guests<input id="guestCount" type="number" inputmode="numeric" min="1" value="1"></label>
-      <label>Discount type<select id="discountType"><option value="percent">Percent %</option><option value="amount">Fixed amount</option></select></label>
-      <label>Discount value<input id="discountValue" type="number" inputmode="decimal" min="0" step="0.01" value="0"></label>
-      <label class="hidden">Payment<select id="payment"></select></label>
-    </div>
-    <div id="paymentQr" class="qr hidden"><img id="paymentQrImage" alt="Payment QR"><div><b id="paymentQrTitle">Scan to Pay</b><div class="muted">Use the café's configured payment QR.</div></div></div>
-    <div class="summary"><div class="sumrow"><span>Subtotal</span><b id="subtotal">Rs 0</b></div><div class="sumrow"><span>Discount</span><b id="discountAmount">- Rs 0</b></div><div class="sumrow"><span>Tax</span><b id="taxAmount">Rs 0</b></div><div class="sumrow total"><span>Total</span><span id="grandTotal">Rs 0</span></div></div>
-    <div id="drawerStatus" class="status">Synced</div>
-    <div class="actions-sticky"><button id="payOrder" class="pay-pending" type="button">Payment required</button><div class="row"><button class="alt" id="refreshOrder" type="button">Refresh</button><button id="saveOrder" type="button">Save Order</button></div></div>
-  </div>
-</div>
-<div id="picker" class="picker hidden" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
-  <div class="picker-card">
-    <div class="row between"><h2 id="pickerTitle">Choose a table</h2><button class="alt" id="pickerClose" type="button">Close</button></div>
-    <div id="pickerList" class="table-list"></div>
-  </div>
-</div>
-<div id="paySheet" class="picker hidden" role="dialog" aria-modal="true" aria-labelledby="paySheetTitle">
-  <div class="picker-card">
-    <div class="row between"><h2 id="paySheetTitle">Payment required</h2><button class="alt" id="paySheetClose" type="button">Close</button></div>
-    <div id="paySheetTable" class="muted"></div>
-    <div class="pay-choices"><button type="button" id="payCash">Cash</button><button type="button" id="payFonepay">Fonepay</button></div>
-  </div>
-</div>
-<div id="qrSheet" class="picker hidden" role="dialog" aria-modal="true" aria-labelledby="qrSheetTitle">
-  <div class="picker-card qr-sheet">
-    <div class="row between"><h2 id="qrSheetTitle">Fonepay</h2><button class="alt" id="qrClose" type="button">Close</button></div>
-    <img id="fonepayQr" alt="Fonepay QR">
-    <div id="fonepayMissing" class="muted"></div>
-    <button type="button" id="fonepayReceived">Payment received</button>
-  </div>
-</div>
-<div id="reserveSheet" class="picker hidden" role="dialog" aria-modal="true" aria-labelledby="reserveTitle">
-  <form id="reserveForm" class="picker-card">
-    <div class="row between"><h2 id="reserveTitle">Reservation</h2><button class="alt" id="reserveClose" type="button">Close</button></div>
+
+<div id="reserveSheet" class="sv-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="reserveTitle">
+  <button type="button" class="sv-backdrop" id="reserveBackdrop" aria-label="Close"></button>
+  <form id="reserveForm" class="sv-sheet-card">
+    <div class="sv-sheet-head"><h2 id="reserveTitle">Reservation</h2><button class="sv-ghost" id="reserveClose" type="button">Close</button></div>
     <label>Guest name<input id="reserveGuest" required autocomplete="name"></label>
     <label>Phone<input id="reservePhone" inputmode="tel" autocomplete="tel"></label>
     <label>Time<input id="reserveTime" type="datetime-local"></label>
     <label>Party size<input id="reserveParty" type="number" min="1" inputmode="numeric" value="1"></label>
     <label>Note<input id="reserveNote"></label>
-    <div class="row"><button type="submit">Save reservation</button><button class="alt" id="reserveClear" type="button">Clear</button></div>
+    <button type="submit">Save reservation</button>
+    <button class="sv-ghost" id="reserveClear" type="button">Cancel reservation</button>
   </form>
 </div>
+<div id="staffBill" class="staff-bill"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>
 <script src="/js/server/app.js"></script>
 </body>

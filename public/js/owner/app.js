@@ -334,10 +334,16 @@ function renderDailyReportHistory(){const body=$('dailyReportHistory');if(!body)
 function downloadDailyBusinessReport(){const data=dailyReportFormData(),saved=reportByDate(data.date),r={...(saved||{}),...data,netBusiness:dailyNet(data)};const lines=[['TEA AMO DAILY BUSINESS REPORT'],['Date',r.date],['Total Sales',r.totalSales],['Total Orders',r.totalOrders],['Opening Cash',r.openingCash],['Closing Cash',r.closingCash],['Cash',r.cash],['eSewa',r.eSewa],['Khalti',r.khalti],['Fonepay',r.fonepay],['Card / Bank',r.card],['Other Payments',r.otherPayment],['Expenses',r.expenses],['Purchases',r.purchases],['Wastage',r.waste],['Non-Chargeable Orders',r.nonChargeOrders],['Non-Chargeable Value',r.nonChargeValue],['Owner Investment',r.ownerInvestment],['Owner Withdrawal',r.ownerWithdrawal],['Net Cash Movement',dailyNet(r)],['Notes',r.notes||'']];const csv=lines.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n'),blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`TEA-AMO-Daily-Business-${r.date}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
 // ===== END DAILY BUSINESS REPORT =====
 
+function posNewOrder(){
+  if(activeSection!=='pos')return hardNav('pos');
+  if(activeTableId)backToTables();
+  return false
+}
 function hardNav(sec){
   const target=document.getElementById(sec);if(!target)return false;
   if(sec==='pos'&&activeSection!=='pos')activeTableId=null;
   activeSection=sec;
+  document.body.dataset.section=sec;
   document.querySelectorAll('section').forEach(s=>s.classList.toggle('active',s.id===sec));
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.sec===sec));
   const label=document.querySelector(`#nav button[data-sec="${sec}"] span`);
@@ -500,15 +506,15 @@ function openTable(id){
   const t=tableById(id);if(!t||!t.active)return;
   activeTableId=id;const o=ensureTableOrder(id);
   $('tableSelectView').classList.add('hidden');$('tableOrderView').classList.remove('hidden');
-  $('activeTableLabel').textContent=`${t.name} · ${t.seats} seats`;
+  $('activeTableLabel').textContent=t.name;
   $('orderType').value='Dine-in';$('orderType').disabled=true;$('orderRef').value=o.orderRef||t.name;
   $('discountType').value=o.discountType||'percent';$('discountValue').value=Number(o.discountValue||0);
   $('guestCount').value=Math.max(1,Number(o.guestCount||1));
   renderPOSWorkspace()
 }
 function openCounter(){
-  activeTableId='counter';$('tableSelectView').classList.add('hidden');$('tableOrderView').classList.remove('hidden');
-  $('activeTableLabel').textContent='Counter / Takeaway';
+  activeTableId='counter';  $('tableSelectView').classList.add('hidden');$('tableOrderView').classList.remove('hidden');
+  $('activeTableLabel').textContent='Counter';
   $('orderType').disabled=false;if($('orderType').value==='Dine-in')$('orderType').value='Takeaway';$('orderRef').value='';
   $('discountType').value='percent';$('discountValue').value=0;$('guestCount').value=1;renderPOSWorkspace()
 }
@@ -528,6 +534,15 @@ function renderTableFloor(){
   const reservations=state.tables.filter(t=>t.active&&t.reservation).sort((a,b)=>String(a.reservation?.time||'').localeCompare(String(b.reservation?.time||'')));
   $('floorReservationList').innerHTML=reservations.length?reservations.map(t=>`<div class="floor-list-row"><button onclick="openReservation('${esc(t.id)}')"><b>${esc(t.name)} · ${esc(t.reservation.guest||'Guest')}</b><div class="sub">${esc((t.reservation.time||'').replace('T',' '))}${t.reservation.party?' · '+t.reservation.party+' guests':''}</div></button></div>`).join(''):'<div class="muted">No reservations.</div>';
 }
+function paintAdminOrderHead(){
+  const t=activeTableId&&activeTableId!=='counter'?tableById(activeTableId):null;
+  if($('activeTableLabel'))$('activeTableLabel').textContent=t?t.name:'Counter';
+  const st=t?tableVisualStatus(t):'available';
+  const labels={available:'Available',occupied:'Occupied',reserved:'Reserved',attention:'Attention'};
+  if($('posTableState')){$('posTableState').textContent=t?labels[st]||st:'Takeaway';$('posTableState').className='admin-pos-badge '+(t?st:'available')}
+  if($('posTableMeta'))$('posTableMeta').textContent=t?[state.business?.branch||'',`${t.seats} seats`].filter(Boolean).join(' · '):(state.business?.branch||'Takeaway');
+  $('orderRef')?.closest('.admin-pos-ref')?.classList.toggle('hidden',!!t)
+}
 function renderPOSWorkspace(){
   renderMenu();fillCustomerSelect();updateMainPaymentQr();
   const o=currentOrderMeta();
@@ -535,30 +550,62 @@ function renderPOSWorkspace(){
   if(o)$('guestCount').value=Math.max(1,Number(o.guestCount||1));
   renderCart();
   const t=activeTableId&&activeTableId!=='counter'?tableById(activeTableId):null;
-  $('posStatus').innerHTML=posAllowed()?`<span class="good">POS OPEN</span> · ${t?`Order stays attached to <b>${esc(t.name)}</b> until payment.`:'Counter order'} Changes save automatically.`:dayRecord().finalized?'<span class="warn">DAY FINALIZED</span> · Billing is locked.':'<span class="bad">POS CLOSED</span> · Reopen it from Finalize Day when needed.';
+  paintAdminOrderHead();
+  $('posStatus').innerHTML=posAllowed()?`<span class="good">POS open</span><span>Changes save automatically.</span>`:dayRecord().finalized?'<span class="warn">Day finalized</span><span>Billing is locked.</span>':'<span class="bad">POS closed</span><span>Reopen it from Business Day.</span>';
   $('checkout').disabled=!posAllowed();$('checkout').style.opacity=posAllowed()?'1':'.55';
-  $('tableReserveBtn').style.display=t?'inline-block':'none';$('tableAttentionBtn').style.display=t?'inline-block':'none';
-  if(t)$('tableAttentionBtn').textContent=t.attention?'Clear Unattended Flag':'Mark Unattended'
+  $('tableReserveBtn').style.display=t?'inline-flex':'none';$('tableAttentionBtn').style.display=t?'inline-flex':'none';
+  if(t)$('tableAttentionBtn').textContent=t.attention?'Resolve Attention':'Mark Attention'
 }
-function renderMenu(){const q=$('menuSearch').value.trim().toLowerCase(),cat=$('catFilter').value;if($('catFilter').options.length===1)[...new Set(state.menu.map(m=>m.category))].forEach(c=>$('catFilter').add(new Option(c,c)));const rows=state.menu.filter(m=>m.active!==false&&(!cat||m.category===cat)&&(!q||m.name.toLowerCase().includes(q)));$('menuGrid').innerHTML=rows.map(m=>`<button class="menuitem" onclick="addCart(${m.id})"><b>${esc(m.name)}</b><small>${esc(m.category)}</small><div class="price">${rs(m.price)}</div><small class="${canMake(m)?'good':'warn'}">${canMake(m)?'Stock ready':'Check stock'}</small></button>`).join('')}
+function renderMenu(){
+  const q=$('menuSearch').value.trim().toLowerCase(),cat=$('catFilter').value;
+  const cats=[...new Set(state.menu.filter(m=>m.active!==false).map(m=>m.category).filter(Boolean))];
+  const current=$('catFilter').value;
+  $('catFilter').innerHTML='<option value="">All categories</option>'+cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if(cats.includes(current))$('catFilter').value=current;
+  const host=$('posCatChips');
+  if(host)host.innerHTML=`<button type="button" class="admin-pos-chip${current?'':' on'}" data-cat="">All</button>`+cats.map(c=>`<button type="button" class="admin-pos-chip${current===c?' on':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('');
+  const rows=state.menu.filter(m=>m.active!==false&&(!cat||m.category===cat)&&(!q||m.name.toLowerCase().includes(q)));
+  $('menuGrid').innerHTML=rows.map(m=>{
+    const photo=m.image||m.photo||m.image_url||'';
+    const ready=canMake(m);
+    const mark=esc(String(m.name||'M').trim().charAt(0)||'M');
+    const visual=photo?`<img class="admin-pos-photo" alt="" src="${esc(photo)}">`:`<div class="admin-pos-photo empty" aria-hidden="true"><span>${mark}</span></div>`;
+    return `<article class="admin-pos-item">${visual}<div class="admin-pos-item-copy"><b>${esc(m.name)}</b><div class="admin-pos-item-price">${rs(m.price)}</div><div class="admin-pos-stock ${ready?'good':'warn'}">${ready?'In stock':'Check stock'}</div></div><button type="button" class="admin-pos-add" onclick="addCart(${Number(m.id)})">Add</button></article>`
+  }).join('')||'<div class="admin-pos-empty">No menu items found.</div>'
+}
+function toggleServeMenu(event,id){
+  event.stopPropagation();
+  const pop=document.getElementById('servePop-'+id);
+  const open=pop&&!pop.classList.contains('hidden');
+  document.querySelectorAll('.admin-pos-serve-pop').forEach(el=>el.classList.add('hidden'));
+  if(pop&&!open)pop.classList.remove('hidden')
+}
 function calcCart(){let subtotal=0;currentCart().forEach(c=>{const m=menuItem(c.id);if(m)subtotal+=m.price*c.qty});const v=Math.max(0,Number($('discountValue').value||0)),discount=$('discountType').value==='percent'?subtotal*Math.min(v,100)/100:Math.min(v,subtotal),tax=(subtotal-discount)*Number(state.business.taxRate||0)/100;return{subtotal,discount,tax,total:subtotal-discount+tax}}
 function renderCart(){
   const cart=currentCart(),rows=[];
   for(const c of cart){
     const m=menuItem(c.id);if(!m)continue;
     c.qty=Math.max(1,Number(c.qty||1));c.served=Math.max(0,Math.min(Number(c.served||0),c.qty));
-    const remain=Math.max(0,c.qty-c.served),done=remain===0;
-    rows.push(`<div class="cartrow ${done?'served-row':''}">
-      <div><b style="font-size:13px">${esc(m.name)}</b><div class="sub">${esc(m.category||'Menu')} · ${rs(m.price)} each</div>
-      <div class="service-line"><span class="service-chip">Ordered: ${c.qty}</span><span class="service-chip done">Served: ${c.served}</span><span class="service-chip ${done?'done':''}">Remaining: ${remain}</span></div></div>
-      <div><div class="qty"><button type="button" class="mini" onclick="changeQty(${c.id},-1)">−</button><b>${c.qty}</b><button type="button" class="mini" onclick="changeQty(${c.id},1)">+</button></div>
-      <div class="service-line">${remain?`<button type="button" class="serve-btn" onclick="markServed(${c.id},1)">Serve 1</button><button type="button" class="serve-btn" onclick="markAllServed(${c.id})">Serve All</button>`:`<button type="button" class="serve-btn undo" onclick="markServed(${c.id},-1)">Undo Served</button>`}</div></div>
-      <b>${rs(m.price*c.qty)}</b></div>`)
+    const remain=Math.max(0,c.qty-c.served),done=remain===0,partial=c.served>0&&!done;
+    const kind=done?'served':partial?'partial':'waiting';
+    const label=done?'Served':partial?`${c.served}/${c.qty} served`:'Waiting';
+    rows.push(`<div class="admin-pos-line ${done?'served-row':''}">
+      <button type="button" class="admin-pos-remove" aria-label="Remove ${esc(m.name)}" onclick="changeQty(${c.id},-1000)">×</button>
+      <div class="admin-pos-line-copy"><b>${esc(m.name)}</b><div class="sub">${rs(m.price)}</div></div>
+      <div class="admin-pos-serve"><button type="button" class="admin-pos-status ${kind}" onclick="toggleServeMenu(event,${c.id})">${label}</button>
+        <div class="admin-pos-serve-pop hidden" id="servePop-${c.id}" role="menu">
+          <button type="button" onclick="markServed(${c.id},1)">Mark one served</button>
+          <button type="button" onclick="markAllServed(${c.id})">Mark all served</button>
+          <button type="button" onclick="markServed(${c.id},-100)">Undo served</button>
+        </div>
+      </div>
+      <div class="admin-pos-qty"><button type="button" class="mini" aria-label="Decrease quantity" onclick="changeQty(${c.id},-1)">−</button><b>${c.qty}</b><button type="button" class="mini" aria-label="Increase quantity" onclick="changeQty(${c.id},1)">+</button></div>
+      <b class="admin-pos-line-total">${rs(m.price*c.qty)}</b></div>`)
   }
-  $('cartRows').innerHTML=rows.length?rows.join(''):'<div class="notice">No menu items in this order yet. Select an item from the menu.</div>';
+  $('cartRows').innerHTML=rows.length?rows.join(''):'<div class="admin-pos-empty">No items yet. Add something from the menu.</div>';
   const totals=calcCart();$('subtotal').textContent=rs(totals.subtotal);$('discountAmount').textContent='- '+rs(totals.discount);$('taxAmount').textContent=rs(totals.tax);$('grandTotal').textContent=rs(totals.total);
   const units=cart.reduce((s,x)=>s+Number(x.qty||0),0),lines=cart.length,served=servedCountForOrder({cart}),unserved=unservedCountForOrder({cart});
-  $('serviceProgress').innerHTML=units?`<b>${lines} menu item${lines===1?'':'s'}</b> · ${units} total unit${units===1?'':'s'} · <span class="good">${served} served</span> · <span class="${unserved?'warn':'good'}">${unserved} remaining</span>`:'No items selected yet.'
+  $('serviceProgress').innerHTML=units?`${lines} item${lines===1?'':'s'} · ${units} unit${units===1?'':'s'} · <span class="good">${served} served</span> · <span class="${unserved?'warn':'good'}">${unserved} waiting</span>`:'No items yet.'
 }
 function addCart(id){
   const cart=currentCart(),c=cart.find(x=>String(x.id)===String(id));
@@ -1395,6 +1442,10 @@ async function init(){
   document.querySelectorAll('#inventoryTabs button').forEach(b=>b.onclick=()=>{activeInvTab=b.dataset.tab;document.querySelectorAll('.invtab').forEach(x=>x.classList.toggle('hidden',x.id!==`inv-${activeInvTab}`));document.querySelectorAll('#inventoryTabs button').forEach(x=>x.classList.toggle('active',x===b));renderInventoryActive()});
   window.addEventListener('resize',debounce(()=>{if(activeSection==='dashboard')renderDashboardCharts();if(activeSection==='reports')renderSellerAnalytics()},120));
   $('menuSearch').oninput=debounce(renderMenu,60);$('catFilter').onchange=renderMenu;
+  $('posCatChips')?.addEventListener('click',(e)=>{const btn=e.target.closest('[data-cat]');if(!btn)return;$('catFilter').value=btn.dataset.cat||'';renderMenu()});
+  $('posPayMethods')?.addEventListener('click',(e)=>{const btn=e.target.closest('[data-pay]');if(!btn||!$('payment'))return;$('payment').value=btn.dataset.pay;$('payment').dispatchEvent(new Event('change'));if(typeof renderPosPayChips==='function')renderPosPayChips()});
+  $('posMoreBtn')?.addEventListener('click',(e)=>{e.stopPropagation();const menu=$('posMoreMenu');if(!menu)return;const open=menu.classList.toggle('hidden')===false;$('posMoreBtn').setAttribute('aria-expanded',String(open))});
+  document.addEventListener('click',()=>{$('posMoreMenu')?.classList.add('hidden');$('posMoreBtn')?.setAttribute('aria-expanded','false');document.querySelectorAll('.admin-pos-serve-pop').forEach(el=>el.classList.add('hidden'))});
   $('discountType').onchange=()=>{saveCurrentOrderUI();renderCart()};$('discountValue').oninput=()=>{saveCurrentOrderUI();renderCart()};
   $('posCustomer').onchange=saveCurrentOrderUI;$('orderRef').onchange=saveCurrentOrderUI;$('orderType').onchange=saveCurrentOrderUI;$('guestCount').onchange=saveCurrentOrderUI;$('payment').onchange=updateMainPaymentQr;
   $('clearCart').onclick=()=>{const cart=currentCart();if(cart.length&&!confirm('Clear this open order?'))return;cart.splice(0,cart.length);const o=currentOrderMeta();if(o)o.openedAt=null;saveCurrentOrderUI();saveSoon();if(activeTableId&&activeTableId!=='counter')deleteLanOrder(activeTableId);renderCart()};
@@ -1523,11 +1574,26 @@ function guessInventoryLocation(name){
 }
 function closeModal(id){$(id)?.classList.remove('show')}
 
-// POS intentionally has no visible category headings.
 renderMenu=function(){
   const q=($('menuSearch')?.value||'').trim().toLowerCase();
-  const rows=state.menu.filter(m=>m.active!==false&&(!q||m.name.toLowerCase().includes(q)));
-  $('menuGrid').innerHTML=rows.map(m=>`<button class="menuitem" onclick="addCart(${m.id})"><b>${esc(m.name)}</b><div class="price">${rs(m.price)}</div><small class="${canMake(m)?'good':'warn'}">${canMake(m)?'Stock ready':'Check stock'}</small></button>`).join('')||'<div class="notice">No menu items match.</div>'
+  const cat=$('catFilter')?.value||'';
+  const cats=[...new Set(state.menu.filter(m=>m.active!==false).map(m=>m.category).filter(Boolean))];
+  if($('catFilter')){
+    $('catFilter').innerHTML='<option value="">All categories</option>'+cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    if(cats.includes(cat))$('catFilter').value=cat;
+  }
+  const current=$('catFilter')?.value||'';
+  const host=$('posCatChips');
+  if(host)host.innerHTML=`<button type="button" class="admin-pos-chip${current?'':' on'}" data-cat="">All</button>`+cats.map(c=>`<button type="button" class="admin-pos-chip${current===c?' on':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('');
+  const rows=state.menu.filter(m=>m.active!==false&&(!current||m.category===current)&&(!q||m.name.toLowerCase().includes(q)));
+  if(!$('menuGrid'))return;
+  $('menuGrid').innerHTML=rows.map(m=>{
+    const photo=m.image||m.photo||m.image_url||'';
+    const ready=canMake(m);
+    const mark=esc(String(m.name||'M').trim().charAt(0)||'M');
+    const visual=photo?`<img class="admin-pos-photo" alt="" src="${esc(photo)}">`:`<div class="admin-pos-photo empty" aria-hidden="true"><span>${mark}</span></div>`;
+    return `<article class="admin-pos-item">${visual}<div class="admin-pos-item-copy"><b>${esc(m.name)}</b><div class="admin-pos-item-price">${rs(m.price)}</div><div class="admin-pos-stock ${ready?'good':'warn'}">${ready?'In stock':'Check stock'}</div></div><button type="button" class="admin-pos-add" onclick="addCart(${Number(m.id)})">Add</button></article>`
+  }).join('')||'<div class="admin-pos-empty">No menu items found.</div>'
 };
 
 function renderMenuAdmin(){
@@ -1569,17 +1635,29 @@ async function completeSelection(selection,paymentInfo,{nonChargeable=false,reas
   showReceipt(bill);setActionStatus(`${nonChargeable?'Non-chargeable order':'Payment'} completed: ${bill.id}${nonChargeable?'':` · ${rs(bill.total)}`}`,'good');if(activeSection==='dashboard')renderDashboard();return bill
 }
 
-checkout=async function(){if(checkoutBusy)return;const cart=currentCart();if(!cart.length)return alert('Add at least one item.');const pending=unservedCountForOrder({cart});if(pending&&!confirm(`${pending} item(s) are still unserved. Complete payment anyway?`))return;const btn=$('checkout');checkoutBusy=true;btn.disabled=true;const txt=btn.textContent;btn.textContent='Processing…';try{const sel=cart.map(c=>({id:c.id,qty:c.qty})),total=selectedTotals(sel).total,info=normalPaymentInfo(total,$('payment').value,$('cashReceived').value);await completeSelection(sel,info);$('cashReceived').value='';updateChangeDue()}catch(e){alert(e.message||e);console.error(e)}finally{checkoutBusy=false;btn.disabled=!posAllowed();btn.textContent=txt}}
-function updateChangeDue(){if(!$('changeDueBadge'))return;const total=calcCart().total,method=$('payment').value,received=Number($('cashReceived').value||0);$('cashReceived').style.display=method==='Cash'?'':'none';$('changeDueBadge').style.display=method==='Cash'?'':'none';$('changeDueBadge').textContent=`Change: ${rs(Math.max(0,received-total))}`}
-function openSplitBill(){const cart=currentCart();if(!cart.length)return alert('Add items first.');$('splitBillRows').innerHTML=cart.map(c=>{const m=menuItem(c.id);return`<div class="split-line"><div><b>${esc(m?.name||'Item')}</b><div class="sub">${c.qty} ordered × ${rs(m?.price||0)}</div></div><input type="number" min="0" max="${c.qty}" step="1" value="0" data-split="${c.id}" oninput="updateSplitTotal()"><b>${rs(m?.price||0)}</b></div>`}).join('');$('splitCashReceived').value='';updateSplitTotal();$('splitBillModal').classList.add('show')}
+let billPass={sig:'',ok:false,skipped:false};
+function billSignature(){return String(activeTableId||'counter')+'|'+currentCart().map(c=>c.id+':'+c.qty).join(',')}
+function billAccepted(){return billPass.ok&&billPass.sig===billSignature()}
+function updateBillGate(){const ok=billAccepted(),note=$('billGateNote');if(note)note.textContent=!currentCart().length?'Add items, then print the bill or skip it.':ok?(billPass.skipped?'Bill skipped. You can take payment.':'Bill printed. You can take payment.'):'Print the bill before payment, or skip the bill and pay directly.';if($('checkout'))$('checkout').disabled=!ok||(typeof posAllowed==='function'&&!posAllowed())}
+function ensureBillGate(){if(billAccepted())return true;alert('Print the bill first, or choose Skip bill to take payment without printing.');return false}
+function openBillHtml(){const cart=currentCart(),totals=calcCart(),t=activeTableId&&activeTableId!=='counter'?tableById(activeTableId):null,lines=cart.map(c=>{const m=menuItem(c.id);return m?`<tr><td><b>${esc(m.name)}</b><div>${c.qty} × ${rs(m.price)}</div></td><td class="num">${rs(m.price*c.qty)}</td></tr>`:''}).join('');return `<div class="print-logo">${esc(state.business.name)}</div><div class="print-subtitle">${esc(state.business.branch)}</div><div class="print-title">CUSTOMER BILL</div><div class="print-meta"><div class="print-meta-row"><span>Table</span><b>${esc(t?t.name:($('orderRef')?.value||'Counter'))}</b></div><div class="print-meta-row"><span>Status</span><b>UNPAID</b></div></div><table class="print-table"><thead><tr><th>Item</th><th class="num">Amount</th></tr></thead><tbody>${lines}</tbody></table><div class="print-summary"><div class="print-summary-row"><span>Subtotal</span><b>${rs(totals.subtotal)}</b></div><div class="print-summary-row"><span>Discount</span><b>- ${rs(totals.discount)}</b></div><div class="print-summary-row"><span>Tax</span><b>${rs(totals.tax)}</b></div><div class="print-summary-row total"><span>TOTAL</span><b>${rs(totals.total)}</b></div></div>`}
+function showOpenBill(){if(!currentCart().length)return alert('Add items before printing the bill.');$('openBill').innerHTML=openBillHtml();$('billModal').classList.add('show')}
+if($('printOpenBill'))$('printOpenBill').onclick=showOpenBill;
+if($('printOpenBillNow'))$('printOpenBillNow').onclick=()=>{billPass={sig:billSignature(),ok:true,skipped:false};updateBillGate();window.print()};
+if($('closeBill'))$('closeBill').onclick=()=>$('billModal').classList.remove('show');
+if($('skipOpenBill'))$('skipOpenBill').onclick=()=>{if(!currentCart().length)return alert('Add items first.');billPass={sig:billSignature(),ok:true,skipped:true};updateBillGate()};
+const _renderPOSWorkspaceBill=renderPOSWorkspace;renderPOSWorkspace=function(){_renderPOSWorkspaceBill();updateBillGate()};
+checkout=async function(){if(checkoutBusy)return;if(!ensureBillGate())return;const cart=currentCart();if(!cart.length)return alert('Add at least one item.');const pending=unservedCountForOrder({cart});if(pending&&!confirm(`${pending} item(s) are still unserved. Complete payment anyway?`))return;const btn=$('checkout');checkoutBusy=true;btn.disabled=true;const txt=btn.textContent;btn.textContent='Processing…';try{const sel=cart.map(c=>({id:c.id,qty:c.qty})),total=selectedTotals(sel).total,info=normalPaymentInfo(total,$('payment').value,$('cashReceived').value);await completeSelection(sel,info);$('cashReceived').value='';updateChangeDue()}catch(e){alert(e.message||e);console.error(e)}finally{checkoutBusy=false;btn.textContent=txt;updateBillGate()}}
+function updateChangeDue(){if(!$('changeDueBadge')||!$('payment'))return;const total=calcCart().total,method=$('payment').value,received=Number($('cashReceived').value||0),cash=method==='Cash';$('cashReceived').style.display=cash?'':'none';$('changeDueBadge').style.display=cash?'':'none';$('cashRow')?.classList.toggle('hidden',!cash);$('changeDueBadge').textContent=`Change: ${rs(Math.max(0,received-total))}`}
+function openSplitBill(){if(!ensureBillGate())return;const cart=currentCart();if(!cart.length)return alert('Add items first.');$('splitBillRows').innerHTML=cart.map(c=>{const m=menuItem(c.id);return`<div class="split-line"><div><b>${esc(m?.name||'Item')}</b><div class="sub">${c.qty} ordered × ${rs(m?.price||0)}</div></div><input type="number" min="0" max="${c.qty}" step="1" value="0" data-split="${c.id}" oninput="updateSplitTotal()"><b>${rs(m?.price||0)}</b></div>`}).join('');$('splitCashReceived').value='';updateSplitTotal();$('splitBillModal').classList.add('show')}
 function getSplitSelection(){return [...document.querySelectorAll('[data-split]')].map(i=>({id:Number(i.dataset.split),qty:Math.max(0,Math.min(Number(i.max),Math.floor(Number(i.value||0))))})).filter(x=>x.qty>0)}
 function updateSplitTotal(){const s=getSplitSelection();$('splitSelectedTotal').textContent=rs(s.length?selectedTotals(s).total:0)}
 async function paySplitSelected(mixed){const s=getSplitSelection();if(!s.length)return alert('Choose at least one item/quantity.');if(mixed){closeModal('splitBillModal');openMixedPayment(s,{split:true});return}try{const total=selectedTotals(s).total,info=normalPaymentInfo(total,$('splitPaymentMethod').value,$('splitCashReceived').value);await completeSelection(s,info);closeModal('splitBillModal')}catch(e){alert(e.message||e)}}
-function openMixedPayment(selection=null,opts={}){const sel=selection||currentCart().map(c=>({id:c.id,qty:c.qty}));if(!sel.length)return alert('Add items first.');mixedPaymentContext={selection:sel,opts};['mixCash','mixCashReceived','mixESewa','mixKhalti','mixFonepay','mixCard'].forEach(id=>$(id).value=0);$('mixedDue').textContent=rs(selectedTotals(sel).total);updateMixedPaymentPreview();$('mixedPaymentModal').classList.add('show')}
+function openMixedPayment(selection=null,opts={}){if(!opts.split&&!ensureBillGate())return;const sel=selection||currentCart().map(c=>({id:c.id,qty:c.qty}));if(!sel.length)return alert('Add items first.');mixedPaymentContext={selection:sel,opts};['mixCash','mixCashReceived','mixESewa','mixKhalti','mixFonepay','mixCard'].forEach(id=>$(id).value=0);$('mixedDue').textContent=rs(selectedTotals(sel).total);updateMixedPaymentPreview();$('mixedPaymentModal').classList.add('show')}
 function mixedValues(){return{Cash:Number($('mixCash').value||0),eSewa:Number($('mixESewa').value||0),Khalti:Number($('mixKhalti').value||0),Fonepay:Number($('mixFonepay').value||0),Card:Number($('mixCard').value||0)}}
 function updateMixedPaymentPreview(){if(!mixedPaymentContext)return;const due=selectedTotals(mixedPaymentContext.selection).total,v=mixedValues(),applied=Object.values(v).reduce((a,b)=>a+b,0),remaining=due-applied,received=Number($('mixCashReceived').value||0),change=v.Cash?Math.max(0,received-v.Cash):0;$('mixedPreview').innerHTML=`Applied: <b>${rs(applied)}</b> · Remaining: <b class="${Math.abs(remaining)<.01?'good':'warn'}">${rs(Math.max(0,remaining))}</b> · Cash change: <b>${rs(change)}</b>`}
 async function confirmMixedPayment(){if(!mixedPaymentContext)return;const due=selectedTotals(mixedPaymentContext.selection).total,v=mixedValues(),applied=Object.values(v).reduce((a,b)=>a+b,0);if(Math.abs(applied-due)>.01)return alert(`Applied payments must equal ${rs(due)}.`);const rec=Number($('mixCashReceived').value||0);if(v.Cash>0&&rec<v.Cash-.009)return alert('Cash received cannot be less than cash applied.');const info={payment:'Mixed',payments:v,cash_received:rec,change_due:v.Cash?Math.max(0,rec-v.Cash):0};try{await completeSelection(mixedPaymentContext.selection,info);mixedPaymentContext=null;closeModal('mixedPaymentModal')}catch(e){alert(e.message||e)}}
-function openNonChargeable(){if(!currentCart().length)return alert('Add items first.');$('nonChargePassword').value=$('nonChargeOther').value='';$('nonChargeModal').classList.add('show')}
+function openNonChargeable(){if(!ensureBillGate())return;if(!currentCart().length)return alert('Add items first.');$('nonChargePassword').value=$('nonChargeOther').value='';$('nonChargeModal').classList.add('show')}
 async function confirmNonChargeable(){if(!await verifyOwnerPassword($('nonChargePassword').value))return alert('Incorrect owner password.');const reason=$('nonChargeReason').value,note=$('nonChargeOther').value.trim(),sel=currentCart().map(c=>({id:c.id,qty:c.qty}));try{await completeSelection(sel,{payment:'Non-Chargeable',payments:{},cash_received:0,change_due:0},{nonChargeable:true,reason,note});closeModal('nonChargeModal')}catch(e){alert(e.message||e)}}
 
 function formatMinutes(v){if(v==null||!Number.isFinite(Number(v)))return '—';v=Math.round(Number(v));const h=Math.floor(v/60),m=v%60;return h?`${h} hr ${m} min`:`${m} min`}
@@ -1642,6 +1720,12 @@ function renderPaymentMethodOptions(){
   const setOperationalSelect=(id,extra=[])=>{const el=$(id);if(!el)return;const cur=el.value,names=[...methods.map(m=>m.name),...extra.filter(x=>!methods.some(m=>m.name===x))];el.innerHTML=names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');if(names.includes(cur))el.value=cur};
   setOperationalSelect('expensePayment',['Bank']);setOperationalSelect('recvPayment',['Bank','Credit']);
   ['eSewa','Khalti','Fonepay'].forEach(name=>{const box=document.querySelector(`[data-quick-method="${name}"]`);if(box)box.classList.toggle('hidden',!methods.some(m=>m.name===name))});
+  if(typeof renderPosPayChips==='function')renderPosPayChips();
+}
+function renderPosPayChips(){
+  const host=$('posPayMethods');if(!host||!$('payment'))return;
+  const current=$('payment').value;
+  host.innerHTML=[...$('payment').options].map(o=>`<button type="button" class="admin-pos-pay${o.value===current?' on':''}" data-pay="${esc(o.value)}" role="radio" aria-checked="${o.value===current?'true':'false'}">${esc(o.textContent)}</button>`).join('')
 }
 function renderPaymentMethodSettings(){
   renderPaymentMethodOptions();renderQrSettings();
@@ -1676,12 +1760,15 @@ const _openSplitBillOps=openSplitBill;
 openSplitBill=function(){renderPaymentMethodOptions();return _openSplitBillOps()};
 
 updateMainPaymentQr=function(){
-  const method=$('payment')?.value||'Cash',panel=$('mainPaymentQrPanel'),img=$('mainPaymentQrImage'),label=$('mainPaymentQrLabel'),missing=$('mainPaymentQrMissing');if(!panel)return;
+  const method=$('payment')?.value||'Cash',panel=$('mainPaymentQrPanel'),img=$('mainPaymentQrImage'),label=$('mainPaymentQrLabel'),missing=$('mainPaymentQrMissing');
+  if(typeof renderPosPayChips==='function')renderPosPayChips();
+  if(!panel)return;
   const digital=isDigitalPayment(method);panel.classList.toggle('hidden',!digital);if(!digital)return;
   label.textContent=`${method} QR`;const qr=paymentQrFor(method);img.classList.toggle('hidden',!qr);missing.classList.toggle('hidden',!!qr);if(qr)img.src=qr;else img.removeAttribute('src')
 };
 
 openMixedPayment=function(selection=null,opts={}){
+  if(!opts.split&&typeof ensureBillGate==='function'&&!ensureBillGate())return;
   const sel=selection||currentCart().map(c=>({id:c.id,qty:c.qty}));if(!sel.length)return alert('Add items first.');mixedPaymentContext={selection:sel,opts};
   const fields=$('mixedPaymentFields');fields.innerHTML=paymentMethods().map(m=>m.name==='Cash'?`<label>Cash applied<input data-mix-method="Cash" type="number" min="0" step=".01" value="0" oninput="updateMixedPaymentPreview()"></label><label>Cash received<input id="mixCashReceived" type="number" min="0" step=".01" value="0" oninput="updateMixedPaymentPreview()"></label>`:`<label>${esc(m.name)}<input data-mix-method="${esc(m.name)}" type="number" min="0" step=".01" value="0" oninput="updateMixedPaymentPreview()"></label>`).join('');
   $('mixedDue').textContent=rs(selectedTotals(sel).total);updateMixedPaymentPreview();$('mixedPaymentModal').classList.add('show')

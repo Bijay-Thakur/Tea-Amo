@@ -4,21 +4,24 @@
         <div class="floor-head">
           <div>
             <h2 style="margin:0">Table Floor</h2>
-            <div class="sub">Select a table directly from the real TEA AMO floor plan. Doors, aquarium, plant railing, stairs, bar and floor seating match the café layout.</div>
+            <div class="sub">Select a table from the TEA AMO floor. Doors, aquarium, plant railing, stairs, bar and floor seating stay on the café plan.</div>
           </div>
           <div class="toolbar" style="margin:0">
             <button class="btn alt" id="openCounterOrder" onclick="openCounter()">Counter / Takeaway</button>
             <button class="btn alt" id="manageTablesBtn">Manage Tables</button>
           </div>
         </div>
-        <div class="floor-legend">
-          <span>● Available</span><span>● Occupied</span><span>● Reserved</span><span>● Unattended / Needs Attention</span>
+        <div class="floor-legend admin-pos-legend">
+          <span><i class="dot available"></i>Available</span>
+          <span><i class="dot occupied"></i>Occupied</span>
+          <span><i class="dot reserved"></i>Reserved</span>
+          <span><i class="dot attention"></i>Attention</span>
         </div>
         <div class="table-summary">
           <div class="statbox"><div class="sub">Available</div><b class="good" id="floorAvailable">0</b></div>
           <div class="statbox"><div class="sub">Occupied</div><b class="warn" id="floorOccupied">0</b></div>
           <div class="statbox"><div class="sub">Reserved</div><b id="floorReserved">0</b></div>
-          <div class="statbox"><div class="sub">Unattended</div><b class="bad" id="floorAttention">0</b></div>
+          <div class="statbox"><div class="sub">Attention</div><b class="bad" id="floorAttention">0</b></div>
         </div>
         <div class="cafe-floor-wrap">
   <div class="cafe-floor" id="tableFloor">
@@ -32,59 +35,95 @@
       </div>
     </div>
 
-    <div id="tableOrderView" class="hidden">
-      <div class="table-order-head">
-        <div class="table-actions">
-          <button class="btn alt" id="backToTables" onclick="backToTables()">← Tables</button>
-          <span class="table-order-tag" id="activeTableLabel">Table</span>
-        </div>
-        <div class="table-actions">
-          <button class="btn alt" id="tableReserveBtn">Reservation</button>
-          <button class="btn alt" id="tableAttentionBtn">Mark Unattended</button>
-        </div>
-      </div>
-
-      <div class="grid g2">
-        <div class="card">
-          <div class="toolbar"><input id="menuSearch" placeholder="Search menu..." style="flex:1"><select id="catFilter"><option value="">All categories</option></select></div>
-          <div id="menuGrid" class="menu-grid"></div>
-        </div>
-        <div class="card">
-          <h2>Current Order</h2>
-          <div id="posStatus" class="notice"></div>
-          <div class="toolbar">
-            <select id="orderType"><option>Dine-in</option><option>Takeaway</option><option>Online</option></select>
-            <input id="orderRef" placeholder="Table / order ref">
-            <label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800">Guests
-              <input id="guestCount" type="number" min="1" max="50" value="1" inputmode="numeric" style="width:70px">
-            </label>
-            <select id="posCustomer"><option value="">Walk-in customer</option></select>
+    <div id="tableOrderView" class="hidden admin-pos">
+      <div class="admin-pos-work">
+        <div class="admin-pos-menu card">
+          <div class="admin-pos-menu-head">
+            <h2>Dining Menu</h2>
+            <div id="posCatChips" class="admin-pos-chips" role="tablist" aria-label="Menu categories"></div>
+            <input id="menuSearch" placeholder="Search menu items..." aria-label="Search menu items">
+            <select id="catFilter" class="admin-pos-sr" aria-hidden="true" tabindex="-1"><option value="">All categories</option></select>
           </div>
-          <div class="notice" id="serviceProgress" style="margin-top:8px">No items selected yet.</div>
-          <div id="cartRows" class="muted">Tap a menu item to start.</div>
-          <div class="summary">
+          <div id="menuGrid" class="admin-pos-grid"></div>
+        </div>
+
+        <aside class="admin-pos-order card">
+          <div class="admin-pos-order-head">
+            <div>
+              <div class="admin-pos-title-row">
+                <h2 id="activeTableLabel">Table</h2>
+                <span id="posTableState" class="admin-pos-badge">Available</span>
+              </div>
+              <div id="posTableMeta" class="sub"></div>
+            </div>
+            <button class="btn alt" id="backToTables" type="button">Tables</button>
+          </div>
+          <div id="posStatus" class="admin-pos-note"></div>
+          <div class="admin-pos-meta">
+            <label>Order type
+              <select id="orderType"><option>Dine-in</option><option>Takeaway</option><option>Online</option></select>
+            </label>
+            <label>Guests
+              <input id="guestCount" type="number" min="1" max="50" value="1" inputmode="numeric">
+            </label>
+            <label class="admin-pos-customer">Customer
+              <select id="posCustomer"><option value="">Walk-in customer</option></select>
+            </label>
+          </div>
+          <label class="admin-pos-ref">Order reference
+            <input id="orderRef" placeholder="Table / order ref">
+          </label>
+          <div class="admin-pos-context">
+            <button class="admin-pos-text" id="tableReserveBtn" type="button">Reservation</button>
+            <button class="admin-pos-text" id="tableAttentionBtn" type="button">Mark Attention</button>
+          </div>
+          <div id="serviceProgress" class="admin-pos-progress">No items yet.</div>
+          <div id="cartRows" class="admin-pos-lines"></div>
+          <div class="admin-pos-discount">
+            <span>Discount</span>
+            <select id="discountType" aria-label="Discount type"><option value="percent">Percent %</option><option value="amount">Amount</option></select>
+            <input id="discountValue" type="number" min="0" value="0" aria-label="Discount value">
+          </div>
+          <div class="summary admin-pos-totals">
             <div class="srow"><span>Subtotal</span><b id="subtotal">Rs 0</b></div>
-            <div class="toolbar" style="margin-top:6px"><select id="discountType"><option value="percent">% Discount</option><option value="amount">Amount Discount</option></select><input id="discountValue" type="number" min="0" value="0" style="width:115px"></div>
             <div class="srow"><span>Discount</span><b id="discountAmount">- Rs 0</b></div>
             <div class="srow"><span>Tax</span><b id="taxAmount">Rs 0</b></div>
             <div class="srow total"><span>Total</span><span id="grandTotal">Rs 0</span></div>
           </div>
-          <div class="toolbar" style="margin-top:10px">
-            <select id="payment"></select>
-            <input id="cashReceived" type="number" min="0" step=".01" placeholder="Cash received" style="width:130px">
-            <span class="badge" id="changeDueBadge">Change: Rs 0</span>
+          <div class="admin-pos-pay-block">
+            <div class="admin-pos-label">Payment</div>
+            <select id="payment" class="admin-pos-sr" aria-hidden="true" tabindex="-1"></select>
+            <div id="posPayMethods" class="admin-pos-pays" role="radiogroup" aria-label="Payment method"></div>
+            <div id="cashRow" class="admin-pos-cash">
+              <label>Cash Received
+                <input id="cashReceived" type="number" min="0" step=".01" inputmode="decimal" placeholder="Leave blank for exact">
+              </label>
+              <div id="changeDueBadge" class="admin-pos-change">Change: Rs 0</div>
+            </div>
             <div id="mainPaymentQrPanel" class="payment-qr-panel hidden">
               <div class="sub" id="mainPaymentQrLabel">Payment QR</div>
               <img id="mainPaymentQrImage" alt="TEA AMO payment QR">
               <div id="mainPaymentQrMissing" class="sub hidden">QR not configured in Settings.</div>
             </div>
-            <button class="btn" id="checkout" onclick="checkout()">Pay & Complete</button>
-            <button class="btn orange" type="button" onclick="openMixedPayment()">Mixed Payment</button>
-            <button class="btn alt" type="button" onclick="openSplitBill()">Split Bill</button>
-            <button class="btn alt" type="button" onclick="openNonChargeable()">Non-Chargeable</button>
-            <button class="btn alt" id="clearCart">Clear Current Order</button>
           </div>
-        </div>
+          <div class="bill-gate" id="billGate">
+            <div class="sub" id="billGateNote">Print the bill before payment, or skip the bill from More.</div>
+          </div>
+          <div class="admin-pos-actions">
+            <button class="btn admin-pos-primary" id="checkout" type="button">Complete Payment</button>
+            <div class="admin-pos-secondary">
+              <button class="btn alt" type="button" id="printOpenBill">Print Bill</button>
+              <button class="btn alt" type="button" id="posMoreBtn" aria-expanded="false" aria-controls="posMoreMenu">More</button>
+            </div>
+            <div id="posMoreMenu" class="admin-pos-more hidden" role="menu">
+              <button type="button" id="skipOpenBill">Skip Bill</button>
+              <button type="button" onclick="openSplitBill()">Split Bill</button>
+              <button type="button" onclick="openMixedPayment()">Mixed Payment</button>
+              <button type="button" onclick="openNonChargeable()">Non-Chargeable</button>
+              <button type="button" class="admin-pos-danger" id="clearCart">Clear Current Order</button>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   </section>
