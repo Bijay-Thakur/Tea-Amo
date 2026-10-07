@@ -1,0 +1,54 @@
+<section id="staff">
+    <div class="grid g2">
+      <div class="card">
+        <div class="floor-head">
+          <div>
+            <h2 style="margin:0">Staff Directory</h2>
+            <div class="sub">Contact details, role, pay and emergency information.</div>
+          </div>
+          <button class="btn" type="button" id="openAddStaff" onclick="openStaffProfile()">+ Add Staff</button>
+        </div>
+        <div class="toolbar">
+          <input id="staffSearch" placeholder="Search staff, phone, email, role..." style="flex:1">
+          <select id="staffStatusFilter">
+            <option value="">All staff</option>
+            <option value="clocked">Clocked in</option>
+            <option value="off">Off duty</option>
+          </select>
+        </div>
+        <div class="grid g4" style="margin-bottom:12px">
+          <div class="statbox"><div class="sub">Total Staff</div><b id="staffKpiTotal">0</b></div>
+          <div class="statbox"><div class="sub">Clocked In</div><b class="good" id="staffKpiClocked">0</b></div>
+          <div class="statbox"><div class="sub">Month Hours</div><b id="staffKpiHours">0</b></div>
+          <div class="statbox"><div class="sub">Est. Payroll</div><b id="staffKpiPayroll">Rs 0</b></div>
+        </div>
+        <div id="staffCards" class="grid g2"></div>
+      </div>
+
+      <div class="card">
+        <h2>Quick Attendance</h2>
+        <div class="notice">Use this for the fastest daily operation. Missed a clock-in or clock-out? Use Add / Edit Shift from the staff card or Attendance History.</div>
+        <div id="quickAttendanceList"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="floor-head">
+        <div>
+          <h2 style="margin:0">Attendance History</h2>
+          <div class="sub">Correct past shifts and review monthly working hours.</div>
+        </div>
+        <div class="toolbar" style="margin:0">
+          <select id="attendanceStaffFilter"><option value="">All staff</option></select>
+          <input id="attendanceMonthFilter" type="month">
+          <button class="btn alt" id="exportAttendance">Export CSV</button>
+        </div>
+      </div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Date</th><th>Staff</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Note</th><th>Action</th></tr></thead>
+          <tbody id="attendanceBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>

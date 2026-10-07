@@ -1,0 +1,7 @@
+<section id="menuadmin">
+    <div class="card">
+      <div class="floor-head"><div><h2 style="margin:0">Menu Management</h2><div class="sub">Add items, change prices, rename, enable/disable or delete items. POS shows items without category headings.</div></div></div>
+      <div class="toolbar"><input id="newMenuName" placeholder="Item name" style="flex:1"><input id="newMenuPrice" type="number" min="0" step=".01" placeholder="Price"><button class="btn" onclick="addMenuItemAdmin()">+ Add Item</button></div>
+      <div class="scroll"><table class="admin-table"><thead><tr><th>Item</th><th>Price</th><th>Active</th><th>Actions</th></tr></thead><tbody id="menuAdminBody"></tbody></table></div>
+    </div>
+  </section>

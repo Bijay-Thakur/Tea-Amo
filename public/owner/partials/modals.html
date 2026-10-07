@@ -1,0 +1,168 @@
+<div class="modal" id="setupModal"><div class="box" style="width:min(520px,96vw)"><h2>Set up TEA AMO</h2><div class="toolbar"><input id="setupBusiness" value="TEA AMO"><input id="setupBranch" value="Main Branch"><input id="setupCurrency" value="Rs"><input id="setupTax" type="number" min="0" step=".01" value="0"></div><input id="setupPass" type="password" placeholder="Create owner password" style="width:100%;margin-bottom:8px"><input id="setupPass2" type="password" placeholder="Confirm password" style="width:100%;margin-bottom:10px"><button class="btn" id="finishSetup">Start</button></div></div>
+
+<div class="modal" id="workDateModal"><div class="box">
+  <h2>Owner Authorization · Working Date</h2>
+  <div class="notice warn"><b id="workDateConfirmLabel">Selected date</b><br>This mode lets you create and modify operational records as if TEA AMO were working on that business date. Use it only for correcting or entering historical business data.</div>
+  <input id="workDatePassword" type="password" placeholder="Owner password" autocomplete="current-password">
+  <div class="toolbar" style="margin-top:12px;justify-content:flex-end">
+    <button class="btn alt" type="button" onclick="closeModal('workDateModal')">Cancel</button>
+    <button class="btn" type="button" onclick="confirmWorkingDateMode()">Unlock & Use This Date</button>
+  </div>
+</div></div>
+
+
+<div class="modal" id="tableManageModal"><div class="box">
+  <h2>Manage Tables</h2>
+  <div class="notice">This table list matches the physical TEA AMO floor plan: T1–T11 plus floor-seating A–D. Change seat counts, active status and reservations here. Physical positions stay fixed.</div>
+  
+  <div class="scroll"><table><thead><tr><th>Table</th><th>Seats</th><th>Status</th><th>Active</th><th>Reservation</th></tr></thead><tbody id="manageTableBody"></tbody></table></div>
+  <div class="toolbar" style="margin-top:12px;justify-content:flex-end"><button class="btn alt" id="closeTableManage">Close</button></div>
+</div></div>
+
+<div class="modal" id="tableReservationModal"><div class="box" style="width:min(560px,96vw)">
+  <h2 id="reservationTitle">Table Reservation</h2>
+  <div class="grid g2">
+    <input id="reservationGuest" placeholder="Guest / booking name">
+    <input id="reservationPhone" placeholder="Phone">
+    <input id="reservationTime" type="datetime-local">
+    <input id="reservationParty" type="number" min="1" placeholder="Party size">
+  </div>
+  <textarea id="reservationNote" placeholder="Reservation note" style="width:100%;margin-top:9px"></textarea>
+  <div class="toolbar" style="margin-top:12px">
+    <button class="btn" id="saveReservationBtn">Save Reservation</button>
+    <button class="btn alt" id="clearReservationBtn">Clear Reservation</button>
+    <button class="btn alt" id="closeReservationBtn">Close</button>
+  </div>
+</div></div>
+
+
+
+<div class="modal" id="staffProfileModal">
+  <div class="box" style="width:min(760px,96vw)">
+    <h2 id="staffProfileTitle">Add Staff</h2>
+    <div class="grid g2">
+      <div>
+        <div class="sub" style="margin-bottom:4px">Full name</div>
+        <input id="staffEditName" style="width:100%" placeholder="Staff full name">
+      </div>
+      <div>
+        <div class="sub" style="margin-bottom:4px">Role</div>
+        <select id="staffEditRole" style="width:100%">
+          <option>Barista</option><option>Kitchen</option><option>Cashier</option>
+          <option>Server</option><option>Manager</option><option>Cleaner</option>
+        </select>
+      </div>
+      <div>
+        <div class="sub" style="margin-bottom:4px">Hourly pay</div>
+        <input id="staffEditRate" type="number" min="0" step=".01" style="width:100%">
+      </div>
+      <div>
+        <div class="sub" style="margin-bottom:4px">Phone</div>
+        <input id="staffEditPhone" style="width:100%" placeholder="Primary contact number">
+      </div>
+      <div>
+        <div class="sub" style="margin-bottom:4px">Email</div>
+        <input id="staffEditEmail" type="email" style="width:100%" placeholder="name@example.com">
+      </div>
+      <div>
+        <div class="sub" style="margin-bottom:4px">Order-taking PIN</div>
+        <input id="staffOrderPin" inputmode="numeric" maxlength="6" placeholder="4–6 digit PIN" style="width:100%">
+      </div>
+      <div>
+        <div class="sub" style="margin-bottom:4px">Phone ordering access</div>
+        <label style="display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);border-radius:10px">
+          <input id="staffCanOrder" type="checkbox"> Allow this staff member to take table orders from a phone
+        </label>
+      </div>
+      <div>
+        <div class="sub" style="margin-bottom:4px">Address / area</div>
+        <input id="staffEditAddress" style="width:100%" placeholder="Optional">
+      </div>
+    </div>
+
+    <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
+    <h3>Emergency Contact</h3>
+    <div class="grid g3">
+      <input id="staffEmergencyName" placeholder="Emergency contact name">
+      <input id="staffEmergencyRelation" placeholder="Relation">
+      <input id="staffEmergencyPhone" placeholder="Emergency phone">
+    </div>
+
+    <div style="margin-top:10px">
+      <div class="sub" style="margin-bottom:4px">Staff notes</div>
+      <textarea id="staffEditNotes" style="width:100%" placeholder="Optional notes"></textarea>
+    </div>
+
+    <div class="toolbar" style="margin-top:12px">
+      <button class="btn" type="button" id="saveStaffProfile" onclick="saveStaffProfile()">Save Staff</button>
+      <button class="btn danger" type="button" id="deleteStaffProfile" onclick="deleteStaffProfile()">Delete Staff</button>
+      <button class="btn alt" type="button" id="cancelStaffProfile" onclick="document.getElementById('staffProfileModal').classList.remove('show')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="attendanceModal">
+  <div class="box" style="width:min(620px,96vw)">
+    <h2 id="attendanceModalTitle">Add / Edit Shift</h2>
+    <div class="notice">
+      Times are entered in <b>Nepal time (NPT)</b>. Saving a correction immediately updates monthly hours and payroll estimates.
+    </div>
+    <div class="grid g2">
+      <div>
+        <div class="sub" style="margin-bottom:4px">Staff</div>
+        <select id="attendanceEditStaff" style="width:100%"></select>
+      </div>
+      <div>
+        <div class="sub" style="margin-bottom:4px">Business date</div>
+        <input id="attendanceEditDate" type="date" style="width:100%">
+      </div>
+      <div>
+        <div class="sub" style="margin-bottom:4px">Clock in</div>
+        <input id="attendanceEditIn" type="time" step="60" style="width:100%">
+      </div>
+      <div>
+        <div class="sub" style="margin-bottom:4px">Clock out</div>
+        <input id="attendanceEditOut" type="time" step="60" style="width:100%">
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <div class="sub" style="margin-bottom:4px">Correction / shift note</div>
+      <input id="attendanceEditNote" placeholder="e.g. Forgot to clock in; manager corrected" style="width:100%">
+    </div>
+    <div style="margin-top:10px">
+      <div class="sub" style="margin-bottom:4px">Owner password</div>
+      <input id="attendanceEditPassword" type="password" placeholder="Required to change attendance" style="width:100%">
+    </div>
+    <div id="attendanceEditPreview" class="notice" style="margin-top:12px">Enter clock-in and clock-out times.</div>
+    <div class="toolbar" style="margin-top:12px">
+      <button class="btn" id="saveAttendanceEdit">Save Shift</button>
+      <button class="btn danger" id="deleteAttendanceEdit">Delete Shift</button>
+      <button class="btn alt" id="cancelAttendanceEdit">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="receiptModal"><div class="box" style="width:min(500px,96vw)"><div class="receipt-actions" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><h2 style="margin:0">Payment Successful</h2><div class="sub">Receipt ready to print.</div></div><span class="badge fast">PAID</span></div><div id="receipt" class="print-document"></div><div class="toolbar receipt-actions" style="justify-content:flex-end;margin-top:12px"><button class="btn" id="printReceipt">Print Receipt</button><button class="btn alt" id="closeReceipt">Close</button></div></div></div>
+
+<div class="modal" id="zModal"><div class="box" style="width:min(500px,96vw)"><h2>Z-Report</h2><div id="zPrint" class="print-document"></div><div class="toolbar receipt-actions" style="margin-top:12px"><button class="btn" onclick="window.print()">Print</button><button class="btn alt" onclick="document.getElementById('zModal').classList.remove('show')">Close</button></div></div></div>
+
+<div class="modal" id="inventoryPrintModal"><div class="box"><h2>Inventory Report</h2><div id="inventoryPrint" class="print-document"></div><div class="toolbar receipt-actions" style="margin-top:12px"><button class="btn" onclick="window.print()">Print</button><button class="btn alt" onclick="document.getElementById('inventoryPrintModal').classList.remove('show')">Close</button></div></div></div>
+
+<div class="modal" id="ingredientModal"><div class="box"><h2 id="ingredientModalTitle">Ingredient</h2><div class="grid g2"><input id="editIngName" placeholder="Name"><input id="editIngUnit" placeholder="Unit"><input id="editIngStock" type="number" step=".001" placeholder="Stock"><input id="editIngCost" type="number" step=".0001" placeholder="Avg cost"><input id="editIngReorder" type="number" step=".001" placeholder="Reorder level"><input id="editIngTarget" type="number" step=".001" placeholder="Target / par"><input id="editIngShelfLife" type="number" step="1" placeholder="Shelf life days"><select id="editIngLocation"><option value="kitchen">Kitchen Inventory</option><option value="bar">Bar Inventory</option></select><select id="editIngVendor"></select></div><textarea id="editIngNotes" placeholder="Notes" style="width:100%;margin-top:9px"></textarea><div class="toolbar" style="margin-top:10px"><label><input id="editIngActive" type="checkbox"> Active</label><button class="btn" id="saveIngredientEdit">Save</button><button class="btn alt" id="cancelIngredientEdit">Cancel</button></div></div></div>
+
+
+<div class="modal" id="splitBillModal"><div class="box"><h2>Split Bill</h2><div class="notice">Choose the quantity of each item for this bill. Remaining quantities stay on the table.</div><div id="splitBillRows"></div><div class="srow total"><span>Selected total</span><span id="splitSelectedTotal">Rs 0</span></div><div class="toolbar"><select id="splitPaymentMethod"></select><input id="splitCashReceived" type="number" min="0" step=".01" placeholder="Cash received"><button class="btn" onclick="paySplitSelected(false)">Pay Selected</button><button class="btn orange" onclick="paySplitSelected(true)">Mixed Payment</button><button class="btn alt" onclick="closeModal('splitBillModal')">Cancel</button></div></div></div>
+<div class="modal" id="paymentCorrectionModal"><div class="box" style="width:min(680px,96vw)">
+  <h2>Correct Payment Method</h2>
+  <div class="notice"><b>This is an accounting correction, not a sale edit.</b> The bill number, items, quantities, subtotal, discount, tax, total and sale timestamp remain unchanged.</div>
+  <div id="paymentCorrectionBillInfo" class="card" style="padding:12px;margin:12px 0"></div>
+  <label>Correct payment type</label>
+  <select id="paymentCorrectionMode" onchange="renderPaymentCorrectionFields()"><option value="single">Single Payment Method</option><option value="mixed">Mixed Payment</option></select>
+  <div id="paymentCorrectionSingle" style="margin-top:10px"><label>Correct payment method</label><select id="paymentCorrectionMethod"></select></div>
+  <div id="paymentCorrectionMixed" style="margin-top:10px;display:none"><div class="sub">Enter the amount for each method. The total must exactly equal the bill total.</div><div id="paymentCorrectionMixedFields" class="paygrid" style="margin-top:8px"></div><div id="paymentCorrectionMixedPreview" class="notice" style="margin-top:8px"></div></div>
+  <label style="margin-top:12px">Reason for correction</label><input id="paymentCorrectionReason" placeholder="Example: Cash selected by mistake; customer actually paid by Fonepay">
+  <label style="margin-top:12px">Owner password</label><input id="paymentCorrectionPassword" type="password" placeholder="Owner password required">
+  <div class="toolbar" style="margin-top:14px"><button class="btn" type="button" onclick="savePaymentCorrection()">Save Correction</button><button class="btn alt" type="button" onclick="closePaymentCorrection()">Cancel</button></div>
+</div></div>
+<div class="modal" id="mixedPaymentModal"><div class="box" style="width:min(620px,96vw)"><h2>Mixed Payment</h2><div class="notice">Enter the amount applied to each payment method. The applied total must equal the bill total.</div><div class="srow total"><span>Amount Due</span><span id="mixedDue">Rs 0</span></div><div class="paygrid" id="mixedPaymentFields"></div><div class="notice" id="mixedPreview" style="margin-top:12px"></div><div class="toolbar"><button class="btn" onclick="confirmMixedPayment()">Complete Payment</button><button class="btn alt" onclick="closeModal('mixedPaymentModal')">Cancel</button></div></div></div>
+<div class="modal" id="nonChargeModal"><div class="box" style="width:min(520px,96vw)"><h2>Owner Non-Chargeable Order</h2><div class="notice">The customer pays Rs 0. Inventory and order history are still recorded. Owner authorization is required.</div><select id="nonChargeReason" style="width:100%;margin-bottom:9px"><option>Owner Complimentary</option><option>Staff Meal</option><option>Customer Recovery</option><option>Promotion</option><option>Sampling</option><option>Wastage / Testing</option><option>Other</option></select><input id="nonChargeOther" placeholder="Additional note" style="width:100%;margin-bottom:9px"><input id="nonChargePassword" type="password" placeholder="Owner password" style="width:100%"><div class="toolbar" style="margin-top:12px"><button class="btn danger" onclick="confirmNonChargeable()">Authorize & Complete</button><button class="btn alt" onclick="closeModal('nonChargeModal')">Cancel</button></div></div></div>

@@ -1,0 +1,83 @@
+<section id="dailyreport">
+    <div class="daily-report-shell">
+      <div class="card daily-calendar-card">
+        <div class="daily-cal-head">
+          <button class="btn alt small" type="button" onclick="dailyCalendarMove(-1)">‹</button>
+          <div class="daily-cal-title" id="dailyCalendarTitle">Calendar</div>
+          <button class="btn alt small" type="button" onclick="dailyCalendarMove(1)">›</button>
+        </div>
+        <div class="daily-cal-week"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
+        <div class="daily-cal-grid" id="dailyCalendarGrid"></div>
+        <div class="daily-cal-legend"><span><i class="daily-dot saved"></i>Saved report</span><span><i class="daily-dot activity"></i>System activity</span></div>
+        <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
+        <div class="daily-field"><label>Select any date</label><input id="dailyReportDate" type="date" onchange="dailyReportDateChanged()"></div>
+        <div class="toolbar" style="margin-top:9px;margin-bottom:0"><button class="btn alt small" type="button" onclick="dailyReportStep(-1)">← Previous Day</button><button class="btn alt small" type="button" onclick="dailyReportToday()">Today</button><button class="btn alt small" type="button" onclick="dailyReportStep(1)">Next Day →</button></div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="daily-report-head">
+            <div><div class="eyebrow">DAILY BUSINESS REPORT</div><h2 id="dailyReportHeading" style="margin:3px 0 3px">Selected Date</h2><div class="sub">Create historical reports manually or load figures already recorded in TEA AMO.</div></div>
+            <span class="daily-report-status" id="dailyReportStatus">Not saved</span>
+          </div>
+
+          <div class="workdate-panel">
+            <div class="row">
+              <div><div class="sub">System working date</div><div id="workDateState" class="workdate-state">Today / normal operation</div></div>
+              <div class="toolbar" style="margin:0">
+                <button class="btn" id="activateWorkDateBtn" type="button" onclick="requestWorkingDateMode()">🔒 Work on Selected Date</button>
+                <button class="btn alt" id="exitWorkDateBtn" type="button" onclick="exitWorkingDateMode()" disabled>Return to Today</button>
+              </div>
+            </div>
+            <div class="workdate-help">Owner password is required before a selected calendar date can control the rest of TEA AMO. Once unlocked, Dashboard, POS orders, Business Day, expenses, purchases, wastage, owner funds and date-based analytics use that selected date until you return to Today.</div>
+          </div>
+
+          <div class="daily-section-title">Daily Summary</div>
+          <div class="daily-report-grid three">
+            <div class="daily-field"><label>Total Sales</label><input id="drTotalSales" type="number" min="0" step="0.01"></div>
+            <div class="daily-field"><label>Total Orders</label><input id="drTotalOrders" type="number" min="0" step="1"></div>
+            <div class="daily-field"><label>Opening Cash</label><input id="drOpeningCash" type="number" min="0" step="0.01"></div>
+            <div class="daily-field"><label>Closing Cash</label><input id="drClosingCash" type="number" min="0" step="0.01"></div>
+            <div class="daily-field"><label>Non-Chargeable Orders</label><input id="drNonChargeOrders" type="number" min="0" step="1"></div>
+            <div class="daily-field"><label>Non-Chargeable Value</label><input id="drNonChargeValue" type="number" min="0" step="0.01"></div>
+          </div>
+
+          <div class="daily-section-title">Payment Breakdown</div>
+          <div class="daily-report-grid three">
+            <div class="daily-field"><label>Cash</label><input id="drCash" type="number" min="0" step="0.01"></div>
+            <div class="daily-field"><label>eSewa</label><input id="drESewa" type="number" min="0" step="0.01"></div>
+            <div class="daily-field"><label>Khalti</label><input id="drKhalti" type="number" min="0" step="0.01"></div>
+            <div class="daily-field"><label>Fonepay</label><input id="drFonepay" type="number" min="0" step="0.01"></div>
+            <div class="daily-field"><label>Card / Bank</label><input id="drCard" type="number" min="0" step="0.01"></div>
+            <div class="daily-field"><label>Other Payments</label><input id="drOtherPayment" type="number" min="0" step="0.01"></div>
+          </div>
+
+          <div class="daily-section-title">Costs & Money Movement</div>
+          <div class="daily-report-grid three">
+            <div class="daily-field"><label>Expenses</label><input id="drExpenses" type="number" min="0" step="0.01"></div>
+            <div class="daily-field"><label>Purchases</label><input id="drPurchases" type="number" min="0" step="0.01"></div>
+            <div class="daily-field"><label>Wastage</label><input id="drWaste" type="number" min="0" step="0.01"></div>
+            <div class="daily-field"><label>Owner Investment</label><input id="drOwnerInvestment" type="number" min="0" step="0.01"></div>
+            <div class="daily-field"><label>Owner Withdrawal</label><input id="drOwnerWithdrawal" type="number" min="0" step="0.01"></div>
+          </div>
+
+          <div class="daily-net-card"><div><small>Net Cash Movement</small><span style="font-size:11px;opacity:.7">Sales − expenses − inventory purchases − wastage (cash movement, not accounting profit)</span></div><b id="drNetBusiness">Rs 0</b></div>
+
+          <div class="daily-section-title">Notes / Remarks</div>
+          <div class="daily-field"><textarea id="drNotes" placeholder="Add important notes about the day, unusual events, promotions, shortages, maintenance, customer issues, etc."></textarea></div>
+
+          <div class="daily-report-actions">
+            <button class="btn alt" type="button" onclick="loadDailyReportFromSystem(true)">↻ Load From System Data</button>
+            <button class="btn" type="button" onclick="saveDailyBusinessReport()">Save / Update Report</button>
+            <button class="btn alt" type="button" onclick="downloadDailyBusinessReport()">Download Report</button>
+            <button class="btn danger" id="deleteDailyReportBtn" type="button" onclick="deleteDailyBusinessReport()">Delete Saved Report</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <div class="toolbar" style="justify-content:space-between"><div><h3 style="margin:0">Saved Daily Reports</h3><div class="sub">One report per calendar date. Selecting a saved date opens it for editing.</div></div><input id="dailyReportSearch" placeholder="Search date or notes" oninput="renderDailyReportHistory()"></div>
+          <div class="scroll"><table class="daily-saved-table"><thead><tr><th>Date</th><th>Sales</th><th>Orders</th><th>Expenses</th><th>Purchases</th><th>Net Cash Movement</th><th>Updated</th><th></th></tr></thead><tbody id="dailyReportHistory"></tbody></table></div>
+        </div>
+      </div>
+    </div>
+  </section>

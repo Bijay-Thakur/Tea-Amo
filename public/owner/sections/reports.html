@@ -1,0 +1,44 @@
+<section id="reports"><div class="grid g3"><div class="card metric"><div class="k">Month Sales</div><div class="v" id="rSales">Rs 0</div></div><div class="card metric"><div class="k">Gross Margin</div><div class="v" id="rMargin">Rs 0</div></div><div class="card metric"><div class="k">Operating Contribution</div><div class="v" id="rOp">Rs 0</div></div></div><div class="card" style="margin-top:14px"><div class="toolbar"><button class="btn alt" id="exportSales">Export Sales CSV</button><button class="btn alt" id="exportExpenses">Export Expenses CSV</button><button class="btn alt" id="exportWaste">Export Waste CSV</button></div><div class="notice good" style="margin-top:10px"><b>Payment Correction is enabled.</b> Use the <b>Correct Payment</b> button beside any completed bill to change Cash/Fonepay/eSewa/Card or correct a mixed split. Owner password + reason are required. Sale amount/items remain unchanged.</div><div class="notice" style="margin-top:10px"><b>Payment correction:</b> If Cash/Fonepay/eSewa/Card was selected incorrectly during Pay & Complete, use <b>Correct Payment</b>. Sale items, total, date and bill number are never changed. Every correction is owner-authorized and permanently audited.</div><div class="scroll"><table><thead><tr><th>Bill</th><th>Date</th><th>Type</th><th>Payment</th><th>Subtotal</th><th>Discount</th><th>Tax</th><th>Total</th><th>COGS</th><th>Action</th></tr></thead><tbody id="salesBody"></tbody></table></div></div>
+<div class="card" style="margin-top:14px">
+  <div class="floor-head"><div><h2 style="margin:0">Table Usage Analytics</h2><div class="sub">Completed table bills and recorded guest counts.</div></div></div>
+  <div class="table-usage-grid">
+    <div class="statbox"><div class="sub">Month Table Visits</div><b id="tableVisitsMonth">0</b></div>
+    <div class="statbox"><div class="sub">Month Customers</div><b id="tableGuestsMonth">0</b></div>
+    <div class="statbox"><div class="sub">All-Time Table Visits</div><b id="tableVisitsAll">0</b></div>
+    <div class="statbox"><div class="sub">All-Time Customers</div><b id="tableGuestsAll">0</b></div>
+  </div>
+  <div class="scroll"><table><thead><tr><th>Table</th><th>Month Uses</th><th>Month Customers</th><th>All-Time Uses</th><th>All-Time Customers</th><th>Avg Guests</th><th>Last Used</th></tr></thead><tbody id="tableUsageBody"></tbody></table></div>
+
+<div class="card" style="margin-top:14px"><div class="floor-head"><div><h2 style="margin:0">Non-Chargeable Orders</h2><div class="sub">Complimentary/owner-authorized orders are excluded from sales revenue but retained for control and inventory tracking.</div></div></div><div class="grid g3" style="margin-bottom:10px"><div class="statbox"><div class="sub">Orders</div><b id="ncCount">0</b></div><div class="statbox"><div class="sub">Menu Value</div><b id="ncValue">Rs 0</b></div><div class="statbox"><div class="sub">Estimated Cost</div><b id="ncCost">Rs 0</b></div></div><div class="scroll"><table><thead><tr><th>Date</th><th>Bill</th><th>Table/Ref</th><th>Reason</th><th>Menu Value</th><th>Cost</th></tr></thead><tbody id="ncBody"></tbody></table></div></div>
+</div>
+
+<div class="card" style="margin-top:14px" id="itemSalesSummaryCard">
+  <div class="floor-head">
+    <div><h2 style="margin:0">Total Items Sold</h2><div class="sub">Chargeable completed sales only. View daily, weekly, monthly, or yearly item quantities and revenue.</div></div>
+    <div class="item-sales-period-controls">
+      <select id="itemSalesPeriod" onchange="syncItemSalesControls();renderItemSalesSummary()"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
+      <input id="itemSalesDate" type="date" onchange="renderItemSalesSummary()">
+      <input id="itemSalesMonth" type="month" onchange="renderItemSalesSummary()" style="display:none">
+      <select id="itemSalesYear" onchange="renderItemSalesSummary()" style="display:none"></select>
+      <input id="itemSalesSearch" class="wide" placeholder="Search item or category" oninput="renderItemSalesSummary()">
+      <button class="btn" id="exportItemSalesExcel" type="button">Export Excel</button>
+      <button class="btn alt" id="exportItemSalesCsv" type="button">Export CSV</button>
+    </div>
+  </div>
+  <div class="item-sales-range" id="itemSalesRangeLabel">—</div>
+  <div class="item-sales-kpis">
+    <div class="statbox"><div class="sub">Total Units Sold</div><b id="itemSalesTotalQty">0</b></div>
+    <div class="statbox"><div class="sub">Unique Items Sold</div><b id="itemSalesUnique">0</b></div>
+    <div class="statbox"><div class="sub">Orders</div><b id="itemSalesOrders">0</b></div>
+    <div class="statbox"><div class="sub">Item Revenue</div><b id="itemSalesRevenue">Rs 0</b></div>
+  </div>
+  <div class="scroll"><table class="item-sales-table"><thead><tr><th>Rank</th><th>Item</th><th>Category</th><th>Qty Sold</th><th>Revenue</th><th>Avg Unit Price</th><th>% of Units</th></tr></thead><tbody id="itemSalesBody"></tbody></table></div>
+</div>
+
+<div class="card" style="margin-top:14px">
+  <div class="floor-head"><div><h2 style="margin:0">Best & Least Sellers</h2><div class="sub">Daily or monthly item performance from completed chargeable sales.</div></div><div style="display:flex;gap:6px;flex-wrap:wrap"><select id="sellerPeriod" onchange="syncSellerControls();renderSellerAnalytics()"><option value="daily">Daily</option><option value="monthly">Monthly</option></select><input id="sellerDate" type="date" onchange="renderSellerAnalytics()"><input id="sellerMonth" type="month" onchange="renderSellerAnalytics()" style="display:none"><select id="sellerMetric" onchange="renderSellerAnalytics()"><option value="qty">By Quantity</option><option value="revenue">By Revenue</option></select></div></div>
+  <div class="grid g2" style="margin-top:10px"><div class="statbox"><div class="sub">Best Seller</div><b id="bestSellerName">—</b><div class="sub" id="bestSellerValue">No sales</div></div><div class="statbox"><div class="sub">Least Seller</div><b id="leastSellerName">—</b><div class="sub" id="leastSellerValue">No sales</div></div></div>
+  <div class="chart-wrap"><canvas id="sellerChart"></canvas></div>
+  <div class="scroll"><table><thead><tr><th>Rank</th><th>Item</th><th>Qty Sold</th><th>Revenue</th></tr></thead><tbody id="sellerBody"></tbody></table></div>
+</div>
+</section>

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4f4f2">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>TEA AMO Staff</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/staff.css">
+<link rel="stylesheet" href="/styles/clay-staff.css">
+</head>
+<body class="clay">
+<div class="wrap">
+  <div class="card brand"><div class="row between"><div class="row"><img class="staff-logo" src="/assets/tea-amo-logo.png" alt="Tea Amo"><div><h1 class="top-title">TEA AMO Staff</h1><div id="business" class="muted">Connecting…</div></div></div><div class="muted"><span id="netDot" class="netdot"></span><span id="netLabel">Checking</span></div></div></div>
+
+  <div id="loginCard" class="card"><h2>Staff Login</h2><div class="row" style="margin-top:12px"><select id="staffSelect" style="flex:1;min-width:190px"></select><input id="pin" type="password" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="PIN" style="width:110px"><button id="loginBtn">Login</button></div><div id="loginStatus" class="status">Choose your name and enter your staff PIN.</div></div>
+
+  <div id="app" class="hidden">
+    <div class="card"><div class="row between"><div><b id="who"></b><div class="muted">Orders sync with the main TEA AMO POS over café Wi-Fi.</div></div><div class="row"><button class="alt small" id="reloadConfig">Refresh</button><button class="alt small" id="logout">Logout</button></div></div></div>
+    <div id="tableView" class="card"><div class="row between"><div><h2>Tables</h2><div class="muted">Tap a table to open its current order.</div></div></div><div id="tables" class="grid" style="margin-top:12px"></div></div>
+
+    <div id="orderView" class="hidden">
+      <div class="card"><div class="row between"><div><h2 id="tableTitle">Order</h2><div id="orderStatus" class="muted">—</div></div><button class="alt" id="backTables">Tables</button></div></div>
+      <div class="menu-toolbar"><div class="card"><div class="row"><input id="menuSearch" placeholder="Search menu" style="flex:1;min-width:170px"><select id="category" style="flex:1;min-width:150px"></select></div></div></div>
+      <div id="menu" class="grid menu-grid"></div>
+    </div>
+  </div>
+</div>
+
+<div id="drawerBar" class="drawer-bar hidden"><div class="drawer-bar-inner"><div class="drawer-main"><b id="drawerTable">Current Order</b><div class="drawer-sub"><span id="drawerCount">0 items</span> · <span id="drawerTotal">Rs 0</span> · <span id="drawerUnsaved">Synced</span></div></div><button id="openDrawer" aria-label="Open current order">▲</button></div></div>
+
+<div id="orderDrawer" class="drawer hidden" role="dialog" aria-modal="true" aria-label="Current order">
+  <div class="drawer-head"><div><b id="drawerTitle">Current Order</b><div class="muted" id="drawerVersion">—</div></div><button class="alt" id="closeDrawer">▼ Close</button></div>
+  <div class="drawer-scroll">
+    <div id="cart"></div>
+    <div class="form-grid">
+      <label>Guests<input id="guestCount" type="number" inputmode="numeric" min="1" value="1"></label>
+      <label>Discount type<select id="discountType"><option value="percent">Percent %</option><option value="amount">Fixed amount</option></select></label>
+      <label>Discount value<input id="discountValue" type="number" inputmode="decimal" min="0" step="0.01" value="0"></label>
+      <label>Payment<select id="payment"></select></label>
+    </div>
+    <div id="paymentQr" class="qr hidden"><img id="paymentQrImage" alt="Payment QR"><div><b id="paymentQrTitle">Scan to Pay</b><div class="muted">Use the café's configured payment QR.</div></div></div>
+    <div class="summary"><div class="sumrow"><span>Subtotal</span><b id="subtotal">Rs 0</b></div><div class="sumrow"><span>Discount</span><b id="discountAmount">Rs 0</b></div><div class="sumrow"><span>Tax</span><b id="taxAmount">Rs 0</b></div><div class="sumrow total"><span>Total</span><span id="grandTotal">Rs 0</span></div></div>
+    <div id="drawerStatus" class="status">Changes not saved yet.</div>
+    <div class="actions-sticky"><div class="row"><button class="alt" id="refreshOrder">Refresh</button><button id="saveOrder">Save Order</button><button id="completeOrder">Complete Order</button></div></div>
+  </div>
+</div>
+
+<script src="/js/staff/app.js"></script>
+</body>
+</html>

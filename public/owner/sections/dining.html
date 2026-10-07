@@ -1,0 +1,6 @@
+<section id="dining">
+    <div class="card"><div class="floor-head"><div><h2 style="margin:0">Average Dining Time</h2><div class="sub">Measured from first item/order opening until the table is fully completed. Split bills do not end the timer until the table is released.</div></div><select id="diningPeriod" onchange="renderDining()"><option value="today">Today</option><option value="7">Last 7 Days</option><option value="30" selected>Last 30 Days</option><option value="all">All Time</option></select></div>
+      <div class="grid g3" style="margin-bottom:12px"><div class="statbox"><div class="sub">Overall Average</div><b id="diningOverall">—</b></div><div class="statbox"><div class="sub">Completed Sessions</div><b id="diningSessions">0</b></div><div class="statbox"><div class="sub">Tables Occupied Now</div><b id="diningActive">0</b></div></div>
+      <div class="scroll"><table><thead><tr><th>Table</th><th>Average Dining Time</th><th>Completed Sessions</th><th>Current / Last</th></tr></thead><tbody id="diningBody"></tbody></table></div>
+    </div>
+  </section>

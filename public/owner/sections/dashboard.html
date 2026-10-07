@@ -1,0 +1,46 @@
+<section id="dashboard" class="active">
+    <div class="welcome-strip">
+      <div><div class="eyebrow">TEA AMO CONTROL CENTER</div><h2>Run today from one place.</h2><div class="sub">Orders, tables, stock, cash and performance — organized for fast daily use.</div></div>
+      <div class="welcome-actions">
+        <button class="btn" onclick="hardNav('pos')">Open POS</button>
+        <button class="btn alt" onclick="hardNav('dayclose')">Business Day</button>
+        <button class="btn alt" onclick="hardNav('reports')">View Reports</button>
+      </div>
+    </div>
+    <div class="grid g4">
+      <div class="card metric"><div class="k">Business Day Sales</div><div class="v" id="dSales">Rs 0</div><div class="sub">Manual POS open / close</div></div>
+      <div class="card metric"><div class="k">Orders</div><div class="v" id="dOrders">0</div><div class="sub">Current business day</div></div>
+      <div class="card metric"><div class="k">Low / Out Stock</div><div class="v" id="dLow">0</div><div class="sub">Needs attention</div></div>
+      <div class="card metric"><div class="k">Waste This Month</div><div class="v" id="dWaste">Rs 0</div><div class="sub">At average cost</div></div>
+    </div>
+
+    <div class="notice" style="margin-top:14px"><b>Income Analytics</b> — these charts are generated from completed chargeable bills and update automatically as sales are recorded.</div>
+    <div class="grid g2" style="margin-top:10px">
+      <div class="card">
+        <div class="floor-head"><div><h2 style="margin:0">Daily Income · Monthly View</h2><div class="sub">Daily chargeable sales for the selected month.</div></div><div style="display:flex;gap:6px"><select id="incomeMonthSelect"></select><select id="incomeMonthYearSelect"></select></div></div>
+        <div class="chart-wrap"><canvas id="dailyIncomeChart"></canvas></div>
+        <div class="srow total"><span>Selected month income</span><span id="dailyIncomeTotal">Rs 0</span></div>
+      </div>
+      <div class="card">
+        <div class="floor-head"><div><h2 style="margin:0">Income · Full Year</h2><div class="sub">Monthly chargeable sales from January through December.</div></div><select id="incomeYearSelect"></select></div>
+        <div class="chart-wrap"><canvas id="yearIncomeChart"></canvas></div>
+        <div class="srow total"><span>Selected year income</span><span id="yearIncomeTotal">Rs 0</span></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="floor-head"><div><h2 style="margin:0">Table Floor</h2><div class="sub">Live dining-room status</div></div><button class="btn small alt" onclick="nav('pos')">Open Table View</button></div>
+      <div class="table-summary">
+        <div class="statbox"><div class="sub">Available</div><b class="good" id="dashTableAvailable">0</b></div>
+        <div class="statbox"><div class="sub">Occupied</div><b class="warn" id="dashTableOccupied">0</b></div>
+        <div class="statbox"><div class="sub">Reserved</div><b id="dashTableReserved">0</b></div>
+        <div class="statbox"><div class="sub">Unattended / Attention</div><b class="bad" id="dashTableAttention">0</b></div>
+      </div>
+    </div>
+
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card"><h2>Operational Alerts</h2><div id="alerts" class="muted">No alerts.</div></div>
+      <div class="card"><h2>Month Snapshot</h2><div class="sub" style="margin-bottom:7px">Shows activity since the last Dashboard clear.</div><div id="monthSnapshot"></div></div>
+    </div>
+
+  </section>

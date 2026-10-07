@@ -1,0 +1,13 @@
+<section id="dayclose">
+    <div class="grid g2">
+      <div class="card"><h2>Business Day Control</h2>
+        <div class="notice">POS & Billing stays open until you close it manually. Use the controls below whenever you are ready; there is no automatic 9 PM shutdown.</div>
+        <div id="dayControl"></div>
+        <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
+        <h3>Opening Cash</h3><div class="toolbar"><input id="openingCash" type="number" min="0" step=".01" placeholder="Opening cash"><button class="btn" id="saveOpeningCash" onclick="saveOpeningCashNow()">Save</button></div>
+        <h3>POS & Billing Control</h3><div class="toolbar"><input id="closePassword" type="password" placeholder="Owner password"><button class="btn danger" id="closePosBilling" type="button" onclick="togglePosBilling(true)">Close POS & Billing</button><button class="btn alt" id="reopenPosBilling" type="button" onclick="togglePosBilling(false)">Reopen POS & Billing</button></div><div class="sub">Closing POS blocks new billing but does not erase orders or finalize the business day.</div><h3>Finalize Day</h3><div class="toolbar"><input id="actualCash" type="number" min="0" step=".01" placeholder="Actual cash counted"><input id="closeNote" placeholder="Closing note" style="flex:1"><button class="btn danger" id="finalizeDay" onclick="finalizeBusinessDay()">Finalize Day</button></div>
+        <div id="cashDiff" class="sub"></div>
+      </div>
+      <div class="card"><h2>Live Z-Report</h2><div id="zLive"></div><div class="toolbar" style="margin-top:10px"><button class="btn" id="printZ">Print Z-Report</button><button class="btn alt" id="exportZ">Export CSV</button></div></div>
+    </div>
+  </section>

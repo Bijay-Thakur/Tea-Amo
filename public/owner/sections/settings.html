@@ -1,0 +1,84 @@
+<section id="settings"><div class="grid g2"><div class="card"><h2>Business Settings</h2><div class="toolbar"><input id="businessName"><input id="branchName"><input id="currency"><input id="taxRate" type="number" min="0" step=".01" placeholder="Tax %"><button class="btn" id="saveBusiness" onclick="saveBusinessNow()">Save</button></div><h3>Owner Password</h3><div class="toolbar"><input id="oldPass" type="password" placeholder="Current password"><input id="newPass" type="password" placeholder="New password"><button class="btn alt" id="changePass">Change</button></div></div><div class="card"><h2>Backup / Recovery</h2><div class="notice"><b>Persistent data model:</b> menu changes are preserved exactly as saved and are not rebuilt from the original seed. Clearing the dashboard never deletes transaction history or operational records.</div><div class="toolbar"><button class="btn" id="backupBtn">Download Full Backup</button><label class="btn alt">Restore Backup<input id="restoreFile" type="file" accept=".json" hidden></label></div><hr style="border:0;border-top:1px solid var(--line);margin:14px 0"><h3>Clear Dashboard Only</h3><div class="notice">This only resets the numbers shown on the Dashboard to zero. <b>Nothing is deleted.</b> Sales, bills, reports, inventory, recipes, staff, attendance, vendors, expenses, customers, purchases, wastage, Z-reports and movement history all remain intact.</div><div class="toolbar"><input id="resetPassword" type="password" placeholder="Owner password"><button class="btn danger" id="resetAll">Clear Dashboard</button><button class="btn alt" id="restoreDashboard">Restore Full Dashboard View</button></div>
+
+<hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+<h3>Reset Behavior</h3>
+<div class="notice">
+  <b>Dashboard-only reset is active.</b> Resetting TEA AMO now clears only the Dashboard display baseline. Staff, attendance, orders, sales history, inventory, vendors, expenses, customers, recipes, tables and all other operational data remain intact.
+</div>
+<hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+<h3>Complete Operational Reset</h3>
+<div class="notice bad"><b>Use this only when you want to start fresh.</b> It clears sales, bills, table orders, attendance history, expenses, purchases, wastage, customers, inventory movement history, business-day/Z-report history and owner-capital transactions. Inventory quantities and average costs are reset to zero. Your menu/prices, recipes, staff profiles, vendors, business settings, payment methods/QRs and owner password are preserved.</div>
+<div class="toolbar">
+  <input id="fullResetPassword" type="password" placeholder="Owner password">
+  <input id="fullResetConfirm" placeholder="Type RESET TEA AMO" style="min-width:180px">
+  <button class="btn danger" id="fullSystemReset" type="button">Reset System</button>
+</div>
+
+
+<hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+<h3>Payment Methods & QR Codes</h3>
+<div class="notice">
+  eSewa, Khalti and Fonepay are shown at the top for quick QR management. Use <b>Remove Method</b> to remove a payment option completely from POS, Split Bill and Mixed Payment. You can add it back later with Add Payment Method.
+</div>
+<div class="grid g3 payment-qr-settings" id="quickQrMethods">
+  <div class="statbox" data-quick-method="eSewa">
+    <b>eSewa</b>
+    <img id="qrPreviewESewa" class="qr-preview hidden" alt="eSewa QR preview">
+    <label class="btn alt" style="margin-top:8px">Upload / Replace QR<input id="qrUploadESewa" type="file" accept="image/*" hidden></label>
+    <button class="btn danger" type="button" id="qrRemoveMethodESewa" style="margin-top:6px">Remove Method</button>
+  </div>
+  <div class="statbox" data-quick-method="Khalti">
+    <b>Khalti</b>
+    <img id="qrPreviewKhalti" class="qr-preview hidden" alt="Khalti QR preview">
+    <label class="btn alt" style="margin-top:8px">Upload / Replace QR<input id="qrUploadKhalti" type="file" accept="image/*" hidden></label>
+    <button class="btn danger" type="button" id="qrRemoveMethodKhalti" style="margin-top:6px">Remove Method</button>
+  </div>
+  <div class="statbox" data-quick-method="Fonepay">
+    <b>Fonepay</b>
+    <img id="qrPreviewFonepay" class="qr-preview hidden" alt="Fonepay QR preview">
+    <label class="btn alt" style="margin-top:8px">Upload / Replace QR<input id="qrUploadFonepay" type="file" accept="image/*" hidden></label>
+    <button class="btn danger" type="button" id="qrRemoveMethodFonepay" style="margin-top:6px">Remove Method</button>
+  </div>
+</div>
+<div class="sub" style="margin-top:8px">Use a clear square QR image. QR images stay stored with the café data.</div>
+<div class="card" style="margin-top:12px;padding:12px">
+  <h3 style="margin-top:0">Add Payment Method</h3>
+  <div class="toolbar">
+    <input id="newPaymentMethodName" placeholder="Payment method name (example: IME Pay)" style="flex:1">
+    <select id="newPaymentMethodKind"><option value="digital">Digital / QR</option><option value="card">Card / Terminal</option><option value="other">Other</option></select>
+    <button class="btn" id="addPaymentMethodBtn" type="button">Add Payment Method</button>
+  </div>
+  <div class="scroll" style="margin-top:10px"><table><thead><tr><th>Payment Method</th><th>Type</th><th>QR</th><th>Action</th></tr></thead><tbody id="paymentMethodBody"></tbody></table></div>
+</div>
+<hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+<h3>Staff Phone Access</h3>
+<div class="notice">
+  Run the included TEA AMO LAN Server and staff can take table orders from their phones on the same café Wi-Fi. Their screen is restricted to table ordering; payment, reports, payroll, inventory costs, expenses, resets and owner settings stay on the main POS.
+</div>
+<div class="grid g2">
+  <div class="statbox">
+    <div class="sub">LAN Sync</div>
+    <b id="lanSyncStatus">LOCAL-ONLY</b>
+    <div class="sub" id="lanSyncDetail" style="margin-top:5px">Launch through the included server to enable staff phones.</div>
+  </div>
+  <div class="statbox">
+    <div class="sub">Staff URL</div>
+    <b id="lanStaffUrl" style="font-size:12px;word-break:break-all">—</b>
+    <div class="sub" style="margin-top:5px">Phones must be on the same Wi-Fi as the POS laptop.</div>
+  </div>
+</div>
+<div class="toolbar" style="margin-top:10px">
+  <button class="btn" id="lanSyncNow">Sync Menu, Tables & Staff Access</button>
+  <button class="btn alt" id="lanCopyStaffUrl">Copy Staff URL</button>
+</div>
+<div class="sub">For each employee: Staff → Edit Profile → enable Phone ordering access → assign a 4–6 digit PIN.</div>
+<div class="notice" style="margin-top:10px">
+  <b>Android + iPhone:</b> use the exact Staff URL shown here. Staff phones must be on the same café Wi-Fi. On Android, if Chrome cannot open it, temporarily disable VPN/mobile data while testing and set Private DNS to Automatic/Off.
+</div>
+<div class="toolbar" style="margin-top:8px">
+  <button class="btn alt" id="lanRefreshNetwork">Refresh Staff Link</button>
+  <button class="btn alt" id="lanOpenStaffTest">Open Staff Page Test</button>
+</div>
+
+
+</div></div></section>

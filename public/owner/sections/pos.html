@@ -1,0 +1,90 @@
+<section id="pos">
+    <div id="tableSelectView">
+      <div class="card">
+        <div class="floor-head">
+          <div>
+            <h2 style="margin:0">Table Floor</h2>
+            <div class="sub">Select a table directly from the real TEA AMO floor plan. Doors, aquarium, plant railing, stairs, bar and floor seating match the café layout.</div>
+          </div>
+          <div class="toolbar" style="margin:0">
+            <button class="btn alt" id="openCounterOrder" onclick="openCounter()">Counter / Takeaway</button>
+            <button class="btn alt" id="manageTablesBtn">Manage Tables</button>
+          </div>
+        </div>
+        <div class="floor-legend">
+          <span>● Available</span><span>● Occupied</span><span>● Reserved</span><span>● Unattended / Needs Attention</span>
+        </div>
+        <div class="table-summary">
+          <div class="statbox"><div class="sub">Available</div><b class="good" id="floorAvailable">0</b></div>
+          <div class="statbox"><div class="sub">Occupied</div><b class="warn" id="floorOccupied">0</b></div>
+          <div class="statbox"><div class="sub">Reserved</div><b id="floorReserved">0</b></div>
+          <div class="statbox"><div class="sub">Unattended</div><b class="bad" id="floorAttention">0</b></div>
+        </div>
+        <div class="cafe-floor-wrap">
+  <div class="cafe-floor" id="tableFloor">
+    <div class="floor-plan-a11y" aria-hidden="true"></div>
+  </div>
+  <div class="floor-side">
+    <div class="card" style="box-shadow:none"><h3 style="margin-bottom:8px">Open Tables</h3><div id="floorOpenList" class="floor-list"><div class="muted">No open orders.</div></div></div>
+    <div class="card" style="box-shadow:none"><h3 style="margin-bottom:8px">Reservations</h3><div id="floorReservationList" class="floor-list"><div class="muted">No reservations.</div></div></div>
+  </div>
+</div>
+      </div>
+    </div>
+
+    <div id="tableOrderView" class="hidden">
+      <div class="table-order-head">
+        <div class="table-actions">
+          <button class="btn alt" id="backToTables" onclick="backToTables()">← Tables</button>
+          <span class="table-order-tag" id="activeTableLabel">Table</span>
+        </div>
+        <div class="table-actions">
+          <button class="btn alt" id="tableReserveBtn">Reservation</button>
+          <button class="btn alt" id="tableAttentionBtn">Mark Unattended</button>
+        </div>
+      </div>
+
+      <div class="grid g2">
+        <div class="card">
+          <div class="toolbar"><input id="menuSearch" placeholder="Search menu..." style="flex:1"><select id="catFilter"><option value="">All categories</option></select></div>
+          <div id="menuGrid" class="menu-grid"></div>
+        </div>
+        <div class="card">
+          <h2>Current Order</h2>
+          <div id="posStatus" class="notice"></div>
+          <div class="toolbar">
+            <select id="orderType"><option>Dine-in</option><option>Takeaway</option><option>Online</option></select>
+            <input id="orderRef" placeholder="Table / order ref">
+            <label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800">Guests
+              <input id="guestCount" type="number" min="1" max="50" value="1" inputmode="numeric" style="width:70px">
+            </label>
+            <select id="posCustomer"><option value="">Walk-in customer</option></select>
+          </div>
+          <div class="notice" id="serviceProgress" style="margin-top:8px">No items selected yet.</div>
+          <div id="cartRows" class="muted">Tap a menu item to start.</div>
+          <div class="summary">
+            <div class="srow"><span>Subtotal</span><b id="subtotal">Rs 0</b></div>
+            <div class="toolbar" style="margin-top:6px"><select id="discountType"><option value="percent">% Discount</option><option value="amount">Amount Discount</option></select><input id="discountValue" type="number" min="0" value="0" style="width:115px"></div>
+            <div class="srow"><span>Discount</span><b id="discountAmount">- Rs 0</b></div>
+            <div class="srow"><span>Tax</span><b id="taxAmount">Rs 0</b></div>
+            <div class="srow total"><span>Total</span><span id="grandTotal">Rs 0</span></div>
+          </div>
+          <div class="toolbar" style="margin-top:10px">
+            <select id="payment"></select>
+            <input id="cashReceived" type="number" min="0" step=".01" placeholder="Cash received" style="width:130px">
+            <span class="badge" id="changeDueBadge">Change: Rs 0</span>
+            <div id="mainPaymentQrPanel" class="payment-qr-panel hidden">
+              <div class="sub" id="mainPaymentQrLabel">Payment QR</div>
+              <img id="mainPaymentQrImage" alt="TEA AMO payment QR">
+              <div id="mainPaymentQrMissing" class="sub hidden">QR not configured in Settings.</div>
+            </div>
+            <button class="btn" id="checkout" onclick="checkout()">Pay & Complete</button>
+            <button class="btn orange" type="button" onclick="openMixedPayment()">Mixed Payment</button>
+            <button class="btn alt" type="button" onclick="openSplitBill()">Split Bill</button>
+            <button class="btn alt" type="button" onclick="openNonChargeable()">Non-Chargeable</button>
+            <button class="btn alt" id="clearCart">Clear Current Order</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>

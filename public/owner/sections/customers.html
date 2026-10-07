@@ -1,0 +1,10 @@
+<section id="customers">
+  <div class="notice"><b>Customer Management</b> — customer records and complaint tracking are both available on this page. Complaints can be followed from Open → Follow-up → Resolved → Closed.</div>
+  <div class="card" style="margin-top:10px"><h2>Customers</h2><div class="toolbar"><input id="custName" placeholder="Customer name"><input id="custPhone" placeholder="Phone"><input id="custEmail" placeholder="Email"><button class="btn" id="addCustomer" onclick="fallbackAddCustomer()">Add Customer</button></div><div class="scroll"><table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Visits</th><th>Total Spend</th></tr></thead><tbody id="customerBody"></tbody></table></div></div>
+  <div class="card" style="margin-top:14px">
+    <div class="floor-head"><div><h2 style="margin:0">Customer Complaints</h2><div class="sub">Record, follow up, and close customer complaints.</div></div><div class="badge" id="complaintOpenBadge">0 open</div></div>
+    <div class="toolbar" style="margin-top:10px"><select id="complaintCustomer"><option value="">Walk-in / Other customer</option></select><input id="complaintName" placeholder="Customer name (optional)"><input id="complaintPhone" placeholder="Phone (optional)"><select id="complaintPriority"><option value="medium">Medium priority</option><option value="high">High priority</option><option value="low">Low priority</option></select></div>
+    <div class="toolbar"><input id="complaintText" placeholder="Complaint details" style="flex:2;min-width:260px"><input id="complaintResolution" placeholder="Resolution / follow-up note" style="flex:1;min-width:220px"><button class="btn" onclick="addCustomerComplaint()">Add Complaint</button></div>
+    <div class="scroll"><table><thead><tr><th>Date</th><th>Customer</th><th>Phone</th><th>Complaint</th><th>Priority</th><th>Status</th><th>Resolution</th><th></th></tr></thead><tbody id="complaintBody"></tbody></table></div>
+  </div>
+</section>
