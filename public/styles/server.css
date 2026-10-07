@@ -12,13 +12,16 @@ body.server-app .dot-occupied{background:#b85c2d}
 body.server-app .dot-reserved{background:#7158ad}
 body.server-app .dot-attention{background:#b33b36}
 body.server-app .table-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
-body.server-app .table-list button.table-chip{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;min-height:76px;color:#fff;border:0}
-body.server-app .table-list button.table-chip b{font-size:22px;line-height:1.05;letter-spacing:-.02em}
-body.server-app .table-list button.table-chip span{font-size:13px;font-weight:800;opacity:.95}
-body.server-app .table-list button.available{background:#1f8a4c;box-shadow:0 5px 0 #146636}
+body.server-app .table-list button.table-chip{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;min-height:0;padding:8px 12px;border-radius:12px;background:#fff;color:#1c1c1c;border:1.5px solid #d9ddd8;box-shadow:none;font-family:Nunito,sans-serif}
+body.server-app .table-list button.table-chip b{font-size:15px;font-weight:800;line-height:1.2;letter-spacing:0}
+body.server-app .table-list button.table-chip span{font-size:12px;font-weight:700;line-height:1.3}
+body.server-app .table-list button.available{background:#f3faf6;border-color:#9dceB4;color:#17643c}
 body.server-app .table-list button.occupied,
-body.server-app .table-list button.attention{background:#c0392b;box-shadow:0 5px 0 #8e261c}
-body.server-app .table-list button.reserved{background:#6d5bd0;box-shadow:0 5px 0 #4d3ea3}
+body.server-app .table-list button.attention{background:#fdf3ee;border-color:#e3b59f;color:#8a3d1d}
+body.server-app .table-list button.reserved{background:#f6f3fb;border-color:#c9bddf;color:#5b4b8a}
+body.server-app .pay-choices{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+body.server-app .qr-sheet img{width:min(240px,70vw);height:auto;margin:0 auto;background:#fff;border-radius:12px}
+body.server-app .qr-sheet{justify-items:center;text-align:center}
 body.server-app .nav-toggle{min-height:44px;padding:8px 16px}
 body.server-app .nav-toggle.offline{box-shadow:0 5px 0 #8e261c}
 body.server-app .nav-sheet{display:grid;gap:8px;margin-top:12px}
@@ -26,12 +29,46 @@ body.server-app .nav-sheet button{width:100%;text-align:left}
 body.server-app .picker{position:fixed;inset:0;z-index:80;background:rgba(20,20,20,.45);display:flex;align-items:flex-end;justify-content:center;padding:12px}
 body.server-app .picker-card{width:min(560px,100%);max-height:min(82dvh,720px);overflow:auto;background:#fff;border-radius:24px;padding:16px;display:grid;gap:10px}
 body.server-app .picker-card label{display:grid;gap:4px;font-size:13px;font-weight:800}
-body.server-app #payOrder{width:100%;margin-bottom:8px}
-body.server-app #payOrder.pay-pending{background:#e0a100;color:#1c1400;box-shadow:0 5px 0 #a87800}
-body.server-app #payOrder.pay-done{background:#1f8a4c;color:#fff;box-shadow:0 5px 0 #146636}
+body.server-app #payOrder{width:100%;margin-bottom:8px;min-height:44px;font-size:15px;font-weight:800}
+body.server-app #payOrder.pay-pending{background:#f4c542;color:#3a2a00;box-shadow:none}
+body.server-app #payOrder.pay-done{background:#1f8a4c;color:#fff;box-shadow:none}
 body.server-app .sync-pill{font-size:12px;font-weight:800}
-@media(max-width:420px){
+body.server-app{overflow-x:clip}
+body.server-app .wrap{width:100%;max-width:980px}
+body.server-app .brand{background:#f4f4f2;z-index:30}
+body.server-app .brand .row.between{align-items:center;gap:10px}
+body.server-app .brand h1{font-size:clamp(18px,4vw,23px);line-height:1.15}
+body.server-app .staff-logo{width:46px;height:46px;flex:0 0 46px}
+body.server-app .menu-toolbar{top:0;background:#f4f4f2}
+body.server-app .row{min-width:0}
+body.server-app .card,
+body.server-app .drawer,
+body.server-app .picker-card{max-width:100%;min-width:0}
+body.server-app input,
+body.server-app select,
+body.server-app button{max-width:100%}
+body.server-app .nav-sheet button,
+body.server-app .pay-choices button{min-height:44px}
+@media(min-width:700px){
+  body.server-app .table-list{grid-template-columns:repeat(3,minmax(0,1fr))}
+  body.server-app .menu-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(min-width:1100px){
+  body.server-app .menu-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:640px){
+  body.server-app .brand .row.between,
+  body.server-app .menu-toolbar .row,
+  body.server-app #app .card .row.between{align-items:stretch}
+  body.server-app .menu-toolbar .row{flex-direction:column}
+  body.server-app .form-grid{grid-template-columns:1fr}
+  body.server-app .actions-sticky .row{flex-direction:column}
+  body.server-app .actions-sticky .row button{width:100%}
   body.server-app .cafe-floor{min-height:200px}
+  body.server-app .floor-table .state{font-size:7px}
+}
+@media(max-width:380px){
   body.server-app .floor-table .state{display:none}
-  body.server-app .table-list{grid-template-columns:1fr 1fr}
+  body.server-app .pay-choices{grid-template-columns:1fr}
+  body.server-app .table-list{gap:6px}
 }

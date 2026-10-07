@@ -63,10 +63,10 @@ function renderTables() {
 }
 function tableButton(table, handler) {
   const state = tableState(table);
-  const label = { available: 'Available', occupied: 'Occupied', attention: 'Needs attention', reserved: 'Reserved' };
-  const remote = cfg.orders?.[table.id];
-  const count = (remote?.order?.cart || []).reduce((sum, item) => sum + Number(item.qty || 0), 0);
-  const detail = state === 'occupied' && count ? `${label[state]} · ${count} item${count === 1 ? '' : 's'}` : label[state];
+  const count = (cfg.orders?.[table.id]?.order?.cart || []).reduce((sum, item) => sum + Number(item.qty || 0), 0);
+  const detail = state === 'occupied' || state === 'attention'
+    ? (count ? `Customer · ${count} item${count === 1 ? '' : 's'}` : 'Customer')
+    : (state === 'reserved' ? 'Reserved' : 'No customer');
   return `<button type="button" class="table-chip ${state}" onclick="${handler}"><b>${esc(table.name)}</b><span>${esc(detail)}</span></button>`;
 }
 
@@ -263,7 +263,7 @@ $('refreshOrder').onclick = () => {
 };
 function resetPayButton() {
   const button = $('payOrder');
-  button.textContent = 'Payment';
+  button.textContent = 'Payment required';
   button.className = 'pay-pending';
   button.disabled = false;
 }
@@ -273,15 +273,24 @@ function markPaid() {
   button.className = 'pay-done';
   button.disabled = true;
 }
-$('payOrder').onclick = async () => {
+function fonepayQr() {
+  const qr = cfg?.business?.payment_qr || {};
+  const key = Object.keys(qr).find((name) => String(name).toLowerCase() === 'fonepay');
+  return key && qr[key] ? qr[key] : '';
+}
+function openPayChoice() {
   if (paying || !activeTable || !order.cart.length) return alert('Add items first.');
-  if (!confirm(`Take ${$('payment').value} payment for ${activeTable.name}?`)) return;
+  $('paySheetTable').textContent = `${activeTable.name} · ${money(calc().total)}`;
+  $('paySheet').classList.remove('hidden');
+}
+async function takePayment(method) {
+  if (paying || !activeTable || !order.cart.length) return;
   paying = true;
   $('payOrder').disabled = true;
   const key = crypto.randomUUID();
   try {
     const saved = await saveOrder();
-    if (!saved) return;
+    if (!saved) { resetPayButton(); return; }
     status('Confirming payment…');
     const data = await api('/api/ops/payments', {
       method: 'POST',
@@ -290,8 +299,8 @@ $('payOrder').onclick = async () => {
         table_id: activeTable.id,
         expected_version: version,
         items: order.cart.map((line) => ({ menu_item_id: String(line.id), qty: Number(line.qty) })),
-        payment: $('payment').value || 'Cash',
-        payments: { [$('payment').value || 'Cash']: calc().total }
+        payment: method,
+        payments: { [method]: calc().total }
       })
     });
     if (!data.bill?.id) throw new Error('Payment was not confirmed.');
@@ -322,6 +331,27 @@ $('payOrder').onclick = async () => {
 
 function openDrawer() { $('orderDrawer').classList.remove('hidden'); $('drawerBar').classList.add('hidden'); document.body.style.overflow = 'hidden'; }
 function closeDrawer() { $('orderDrawer').classList.add('hidden'); if (activeTable) $('drawerBar').classList.remove('hidden'); document.body.style.overflow = ''; }
+$('payOrder').onclick = openPayChoice;
+$('paySheetClose').onclick = () => $('paySheet').classList.add('hidden');
+$('payCash').onclick = () => { $('paySheet').classList.add('hidden'); takePayment('Cash'); };
+$('payFonepay').onclick = () => {
+  $('paySheet').classList.add('hidden');
+  const qr = fonepayQr();
+  if (qr) {
+    $('fonepayQr').src = qr;
+    $('fonepayQr').classList.remove('hidden');
+    $('fonepayMissing').textContent = 'Ask the guest to scan this Fonepay QR.';
+    $('fonepayReceived').disabled = false;
+  } else {
+    $('fonepayQr').removeAttribute('src');
+    $('fonepayQr').classList.add('hidden');
+    $('fonepayMissing').textContent = 'Admin has not added a Fonepay QR yet. Add it from Administration settings.';
+    $('fonepayReceived').disabled = true;
+  }
+  $('qrSheet').classList.remove('hidden');
+};
+$('qrClose').onclick = () => $('qrSheet').classList.add('hidden');
+$('fonepayReceived').onclick = () => { $('qrSheet').classList.add('hidden'); takePayment('Fonepay'); };
 $('openDrawer').onclick = openDrawer;
 $('closeDrawer').onclick = closeDrawer;
 $('guestCount').oninput = applyForm;
@@ -341,8 +371,8 @@ function closePicker() { $('picker').classList.add('hidden'); }
 function openPicker(action) {
   pickerAction = action;
   const titles = {
-    occupy: 'Which table is occupied?',
-    leave: 'Which table was left?',
+    occupy: 'Occupied tables',
+    leave: 'Tables with no customer',
     reserve: 'Reserve which table?',
     add: 'Add an item to which table?',
     pay: 'Take payment for which table?'
@@ -351,20 +381,21 @@ function openPicker(action) {
   const tables = sortedTables().filter((table) => {
     const state = tableState(table);
     const count = (cfg.orders?.[table.id]?.order?.cart || []).reduce((sum, item) => sum + Number(item.qty || 0), 0);
-    if (action === 'occupy') return state === 'available' || state === 'reserved';
-    if (action === 'leave') return state === 'occupied' || state === 'attention';
+    if (action === 'occupy') return state === 'occupied' || state === 'attention';
+    if (action === 'leave') return state === 'available';
     if (action === 'pay') return count > 0;
     return true;
   });
   $('pickerList').innerHTML = tables.length
     ? tables.map((table) => {
         const state = tableState(table);
-        const label = { available: 'Available', occupied: 'Occupied', attention: 'Needs attention', reserved: 'Reserved' };
         const count = (cfg.orders?.[table.id]?.order?.cart || []).reduce((sum, item) => sum + Number(item.qty || 0), 0);
-        const detail = state === 'occupied' && count ? `${label[state]} · ${count} item${count === 1 ? '' : 's'}` : label[state];
+        const detail = state === 'occupied' || state === 'attention'
+          ? (count ? `Customer · ${count} item${count === 1 ? '' : 's'}` : 'Customer')
+          : (state === 'reserved' ? 'Reserved' : 'No customer');
         return `<button type="button" class="table-chip ${state}" data-pick="${esc(table.id)}"><b>${esc(table.name)}</b><span>${esc(detail)}</span></button>`;
       }).join('')
-    : '<div class="muted">No tables match this action.</div>';
+    : `<div class="muted">${action === 'occupy' ? 'No table has a customer right now.' : action === 'leave' ? 'Every table still has a customer.' : 'No tables match this action.'}</div>`;
   $('picker').classList.remove('hidden');
 }
 function openReserve(id) {
@@ -405,8 +436,7 @@ $('pickerList').onclick = async (event) => {
   if (!id) return;
   closePicker();
   try {
-    if (pickerAction === 'occupy') await postTable(id, 'occupy');
-    else if (pickerAction === 'leave') await postTable(id, 'leave');
+    if (pickerAction === 'occupy' || pickerAction === 'leave' || pickerAction === 'add') await openTable(id);
     else if (pickerAction === 'reserve') openReserve(id);
     else if (pickerAction === 'add') await openTable(id);
     else if (pickerAction === 'pay') await openTable(id, 'pay');

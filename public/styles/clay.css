@@ -120,12 +120,61 @@ body.clay main {
   max-width: none;
 }
 
-body.clay .top {
+body.clay .top-stack {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: #f4f4f2;
+  margin: 0;
+  padding: 6px 2px 16px;
+}
+
+body.clay .top,
+body.clay #workDateBanner {
+  position: static;
+  top: auto;
+  z-index: auto;
   background: transparent;
-  border-bottom: 0;
+  border: 0;
+  box-shadow: none;
   backdrop-filter: none;
-  margin: 0 0 14px;
-  padding: 4px 2px 8px;
+  margin: 0;
+  padding: 0;
+}
+
+body.clay .top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+body.clay #workDateBanner.show {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+body.clay .top-title {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+body.clay .top-title h1 {
+  font-size: clamp(22px, 2.2vw, 28px);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+body.clay #clockText {
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+body.clay .top-actions {
+  flex: 1 1 260px;
+  min-width: 0;
+  justify-content: flex-end;
 }
 
 body.clay .top-title h1,
@@ -156,11 +205,13 @@ body.clay .modal .box {
   box-shadow: var(--clay-hi), var(--clay-lo);
 }
 
-body.clay .card:hover,
-body.clay .menuitem:hover,
-body.clay .table-card:hover {
-  transform: translateY(-3px);
-  box-shadow: -6px -6px 14px rgba(255, 252, 248, 0.9), 14px 18px 26px rgba(168, 126, 96, 0.26);
+@media (hover: hover) and (min-width: 1100px) {
+  body.clay .card:hover,
+  body.clay .menuitem:hover,
+  body.clay .table-card:hover {
+    transform: translateY(-3px);
+    box-shadow: -6px -6px 14px rgba(255, 252, 248, 0.9), 14px 18px 26px rgba(168, 126, 96, 0.26);
+  }
 }
 
 body.clay .metric {
@@ -187,6 +238,35 @@ body.clay .metric .v {
   position: relative;
   z-index: 1;
   color: #161616;
+  font-size: clamp(20px, 2vw, 28px);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+body.clay .metric .k,
+body.clay .metric .sub {
+  position: relative;
+  z-index: 1;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+body.clay .grid > *,
+body.clay .welcome-strip,
+body.clay .card,
+body.clay main,
+body.clay .toolbar,
+body.clay .floor-head,
+body.clay .srow {
+  min-width: 0;
+  max-width: 100%;
+}
+
+body.clay input,
+body.clay select,
+body.clay textarea,
+body.clay button {
+  max-width: 100%;
 }
 
 body.clay .btn,
@@ -365,6 +445,8 @@ body.clay #workDateBanner.show {
   border-radius: 24px;
   border: 3px solid rgba(255, 255, 255, 0.8);
   box-shadow: var(--clay-hi), var(--clay-lo);
+  padding: 10px 14px;
+  background: linear-gradient(90deg, #fff3cf, #ffe8ab);
 }
 
 body.clay .empty-state {
@@ -373,40 +455,48 @@ body.clay .empty-state {
   color: var(--muted);
 }
 
+body.clay .modal .box {
+  width: min(740px, calc(100vw - 24px));
+  max-width: 100%;
+}
+
+body.clay .chart-wrap,
+body.clay .scroll {
+  max-width: 100%;
+}
+
+body.clay .chart-wrap canvas {
+  max-width: 100%;
+}
+
+@media (max-width: 1280px) {
+  body.clay .app { grid-template-columns: 232px minmax(0, 1fr); gap: 12px; padding: 12px; }
+  body.clay .g4,
+  body.clay .balance-grid,
+  body.clay .item-sales-kpis,
+  body.clay .table-usage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 1100px) {
-  body.clay .app { grid-template-columns: 248px minmax(0, 1fr); }
-}
-
-@media (max-width: 980px) {
-  body.clay .app {
-    grid-template-columns: 248px minmax(0, 1fr);
-    padding: 10px;
-    gap: 10px;
-  }
-  body.clay .brand-copy,
-  body.clay .brand small,
-  body.clay .nav span,
-  body.clay .nav-group-label { display: block; }
-  body.clay .nav button { justify-content: flex-start; }
-}
-
-@media (max-width: 760px) {
-  body.clay .app { display: block; padding: 8px; }
+  body.clay .app { display: block; padding: 10px; }
   body.clay .side {
     position: sticky;
     top: 0;
     height: auto;
     max-height: none;
     z-index: 40;
-    padding: 10px;
+    padding: 10px 12px;
     border-radius: 22px;
+    margin-bottom: 10px;
   }
-  body.clay .brand { justify-content: flex-start; margin-bottom: 8px; }
+  body.clay .top-stack { position: static; }
+  body.clay .brand { justify-content: flex-start; margin-bottom: 8px; padding-bottom: 8px; }
   body.clay .clay-mark { width: 42px; height: 42px; flex-basis: 42px; border-radius: 14px; }
+  body.clay .brand b { font-size: 16px; }
+  body.clay .brand small,
+  body.clay .nav-group-label { display: none; }
   body.clay .brand-copy,
   body.clay .nav span { display: revert; }
-  body.clay .brand small { display: none; }
-  body.clay .nav-group-label { display: none; }
   body.clay .nav {
     display: flex;
     gap: 6px;
@@ -419,40 +509,66 @@ body.clay .empty-state {
     justify-content: flex-start;
     white-space: nowrap;
     margin: 0;
-    min-height: 42px;
+    min-height: 40px;
+    padding: 8px 12px;
   }
-  body.clay main { padding: 12px 4px 28px; }
-  body.clay .welcome-strip { align-items: stretch; padding: 14px; }
-  body.clay .eyebrow { letter-spacing: .08em; line-height: 1.4; }
+  body.clay main { padding: 4px 2px 32px; }
+  body.clay .welcome-strip { align-items: stretch; flex-direction: column; padding: 16px; gap: 12px; }
   body.clay .welcome-strip h2 { font-size: 20px; line-height: 1.25; }
   body.clay .welcome-actions { width: 100%; }
-  body.clay .metric .k { letter-spacing: .03em; line-height: 1.35; }
-  body.clay .metric .v { font-size: 22px; line-height: 1.15; overflow-wrap: anywhere; }
+  body.clay .welcome-actions .btn { flex: 1 1 auto; }
+  body.clay .g2,
+  body.clay .g3,
+  body.clay .cafe-floor-wrap,
+  body.clay .daily-report-shell,
+  body.clay .floor-side { grid-template-columns: 1fr; }
   body.clay .floor-head { align-items: stretch; }
-  body.clay .floor-head select { min-width: 0; max-width: 100%; }
-  body.clay .top-title h1 { font-size: 22px; line-height: 1.2; }
-  body.clay #clockText,
-  body.clay .sub,
+  body.clay .floor-head > div:last-child { width: 100%; }
+  body.clay .cafe-floor { min-height: 280px; }
+  body.clay .card h2,
   body.clay .notice,
-  body.clay .card h2 { line-height: 1.4; }
-  body.clay .card h2 { overflow-wrap: anywhere; }
+  body.clay .sub { overflow-wrap: anywhere; line-height: 1.4; }
   body.clay .scroll,
-  body.clay .chart-wrap { max-width: 100%; overflow-x: auto; }
-  body.clay .srow { gap: 12px; }
-  body.clay .srow span { min-width: 0; overflow-wrap: anywhere; }
+  body.clay .chart-wrap { overflow-x: auto; }
+  body.clay .top { flex-direction: column; align-items: stretch; }
+  body.clay .top-title,
+  body.clay .top-actions { flex: 0 0 auto; width: 100%; }
+  body.clay .top-actions { justify-content: flex-start; }
+  body.clay .top-actions .quick-btn { display: none; }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 720px) {
   body.clay .app { padding: 8px; }
-  body.clay main { padding: 12px 2px 28px; }
+  body.clay main { padding: 2px 0 28px; }
   body.clay .card,
-  body.clay .welcome-strip { border-radius: 22px; }
+  body.clay .welcome-strip,
+  body.clay .modal .box { border-radius: 20px; }
   body.clay .g4,
   body.clay .g3,
   body.clay .g2,
-  body.clay .table-summary { grid-template-columns: 1fr !important; }
+  body.clay .table-summary,
+  body.clay .balance-grid,
+  body.clay .item-sales-kpis,
+  body.clay .table-usage-grid,
+  body.clay .daily-report-grid,
+  body.clay .daily-report-grid.three,
+  body.clay .paygrid { grid-template-columns: 1fr !important; }
   body.clay .welcome-actions { display: grid; grid-template-columns: 1fr; }
   body.clay .welcome-actions .btn { width: 100%; }
+  body.clay .toolbar { align-items: stretch; }
+  body.clay .toolbar > input,
+  body.clay .toolbar > select,
+  body.clay .toolbar > textarea { flex: 1 1 100%; width: 100%; }
+  body.clay .metric { min-height: 0; }
+  body.clay th,
+  body.clay td { white-space: normal; }
+  body.clay .num { white-space: nowrap; }
+  body.clay .chart-wrap { height: 220px; }
+  body.clay .menu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: none; }
+  body.clay .split-line { grid-template-columns: minmax(0, 1fr); }
+  body.clay .daily-cal-day { min-height: 36px; padding: 3px; font-size: 11px; }
+  body.clay .daily-cal-day.today:after { content: none; }
+  body.clay .table-floor { grid-template-columns: 1fr 1fr; }
 }
 
 @media print {

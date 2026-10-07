@@ -51,18 +51,33 @@
       <label>Guests<input id="guestCount" type="number" inputmode="numeric" min="1" value="1"></label>
       <label>Discount type<select id="discountType"><option value="percent">Percent %</option><option value="amount">Fixed amount</option></select></label>
       <label>Discount value<input id="discountValue" type="number" inputmode="decimal" min="0" step="0.01" value="0"></label>
-      <label>Payment<select id="payment"></select></label>
+      <label class="hidden">Payment<select id="payment"></select></label>
     </div>
     <div id="paymentQr" class="qr hidden"><img id="paymentQrImage" alt="Payment QR"><div><b id="paymentQrTitle">Scan to Pay</b><div class="muted">Use the café's configured payment QR.</div></div></div>
     <div class="summary"><div class="sumrow"><span>Subtotal</span><b id="subtotal">Rs 0</b></div><div class="sumrow"><span>Discount</span><b id="discountAmount">- Rs 0</b></div><div class="sumrow"><span>Tax</span><b id="taxAmount">Rs 0</b></div><div class="sumrow total"><span>Total</span><span id="grandTotal">Rs 0</span></div></div>
     <div id="drawerStatus" class="status">Synced</div>
-    <div class="actions-sticky"><button id="payOrder" class="pay-pending" type="button">Payment</button><div class="row"><button class="alt" id="refreshOrder" type="button">Refresh</button><button id="saveOrder" type="button">Save Order</button></div></div>
+    <div class="actions-sticky"><button id="payOrder" class="pay-pending" type="button">Payment required</button><div class="row"><button class="alt" id="refreshOrder" type="button">Refresh</button><button id="saveOrder" type="button">Save Order</button></div></div>
   </div>
 </div>
 <div id="picker" class="picker hidden" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
   <div class="picker-card">
     <div class="row between"><h2 id="pickerTitle">Choose a table</h2><button class="alt" id="pickerClose" type="button">Close</button></div>
     <div id="pickerList" class="table-list"></div>
+  </div>
+</div>
+<div id="paySheet" class="picker hidden" role="dialog" aria-modal="true" aria-labelledby="paySheetTitle">
+  <div class="picker-card">
+    <div class="row between"><h2 id="paySheetTitle">Payment required</h2><button class="alt" id="paySheetClose" type="button">Close</button></div>
+    <div id="paySheetTable" class="muted"></div>
+    <div class="pay-choices"><button type="button" id="payCash">Cash</button><button type="button" id="payFonepay">Fonepay</button></div>
+  </div>
+</div>
+<div id="qrSheet" class="picker hidden" role="dialog" aria-modal="true" aria-labelledby="qrSheetTitle">
+  <div class="picker-card qr-sheet">
+    <div class="row between"><h2 id="qrSheetTitle">Fonepay</h2><button class="alt" id="qrClose" type="button">Close</button></div>
+    <img id="fonepayQr" alt="Fonepay QR">
+    <div id="fonepayMissing" class="muted"></div>
+    <button type="button" id="fonepayReceived">Payment received</button>
   </div>
 </div>
 <div id="reserveSheet" class="picker hidden" role="dialog" aria-modal="true" aria-labelledby="reserveTitle">
