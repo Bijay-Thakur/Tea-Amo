@@ -1,0 +1,37 @@
+body.server-app .floor-wrap{margin-top:8px}
+body.server-app .cafe-floor{position:relative;width:100%;aspect-ratio:4/3;border:2px solid #b9aa97;border-radius:18px;background-image:url("/assets/tea-amo-floor-plan.png");background-size:100% 100%;background-repeat:no-repeat;overflow:hidden;min-height:220px}
+body.server-app .floor-table{position:absolute;border:3px solid rgba(61,139,87,.72);background:rgba(255,255,255,.08);border-radius:12px;padding:0;min-height:0;color:#17211f}
+body.server-app .floor-table.occupied{border-color:rgba(184,92,45,.95);background:rgba(255,225,205,.28)}
+body.server-app .floor-table.reserved{border-color:rgba(113,88,173,.95);background:rgba(232,225,255,.28)}
+body.server-app .floor-table.attention{border-color:rgba(179,59,54,.95);background:rgba(255,214,210,.34)}
+body.server-app .floor-table .state{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);font-size:8px;font-weight:900;background:#fff;border-radius:999px;padding:2px 5px;white-space:nowrap}
+body.server-app .legend{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;font-weight:800;margin:8px 0}
+body.server-app .legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}
+body.server-app .dot-available{background:#2c9a5c}
+body.server-app .dot-occupied{background:#b85c2d}
+body.server-app .dot-reserved{background:#7158ad}
+body.server-app .dot-attention{background:#b33b36}
+body.server-app .table-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+body.server-app .table-list button.table-chip{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;min-height:76px;color:#fff;border:0}
+body.server-app .table-list button.table-chip b{font-size:22px;line-height:1.05;letter-spacing:-.02em}
+body.server-app .table-list button.table-chip span{font-size:13px;font-weight:800;opacity:.95}
+body.server-app .table-list button.available{background:#1f8a4c;box-shadow:0 5px 0 #146636}
+body.server-app .table-list button.occupied,
+body.server-app .table-list button.attention{background:#c0392b;box-shadow:0 5px 0 #8e261c}
+body.server-app .table-list button.reserved{background:#6d5bd0;box-shadow:0 5px 0 #4d3ea3}
+body.server-app .nav-toggle{min-height:44px;padding:8px 16px}
+body.server-app .nav-toggle.offline{box-shadow:0 5px 0 #8e261c}
+body.server-app .nav-sheet{display:grid;gap:8px;margin-top:12px}
+body.server-app .nav-sheet button{width:100%;text-align:left}
+body.server-app .picker{position:fixed;inset:0;z-index:80;background:rgba(20,20,20,.45);display:flex;align-items:flex-end;justify-content:center;padding:12px}
+body.server-app .picker-card{width:min(560px,100%);max-height:min(82dvh,720px);overflow:auto;background:#fff;border-radius:24px;padding:16px;display:grid;gap:10px}
+body.server-app .picker-card label{display:grid;gap:4px;font-size:13px;font-weight:800}
+body.server-app #payOrder{width:100%;margin-bottom:8px}
+body.server-app #payOrder.pay-pending{background:#e0a100;color:#1c1400;box-shadow:0 5px 0 #a87800}
+body.server-app #payOrder.pay-done{background:#1f8a4c;color:#fff;box-shadow:0 5px 0 #146636}
+body.server-app .sync-pill{font-size:12px;font-weight:800}
+@media(max-width:420px){
+  body.server-app .cafe-floor{min-height:200px}
+  body.server-app .floor-table .state{display:none}
+  body.server-app .table-list{grid-template-columns:1fr 1fr}
+}

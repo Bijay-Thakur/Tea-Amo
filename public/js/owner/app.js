@@ -476,8 +476,8 @@ function ensureTableOrder(id){
   return o
 }
 function tableHasOrder(id){const o=state.tableOrders[id];return !!(o&&Array.isArray(o.cart)&&o.cart.some(x=>x.qty>0))}
-function tableVisualStatus(t){if(t.attention)return'attention';if(tableHasOrder(t.id))return'occupied';if(t.reservation)return'reserved';return'available'}
-function tableStatusCounts(){let available=0,occupied=0,reserved=0,attention=0;state.tables.filter(t=>t.active).forEach(t=>{if(t.attention)attention++;if(tableHasOrder(t.id))occupied++;else if(t.reservation)reserved++;else available++});return{available,occupied,reserved,attention}}
+function tableVisualStatus(t){if(t.attention)return'attention';if(tableHasOrder(t.id)||t.seated)return'occupied';if(t.reservation)return'reserved';return'available'}
+function tableStatusCounts(){let available=0,occupied=0,reserved=0,attention=0;state.tables.filter(t=>t.active).forEach(t=>{if(t.attention)attention++;if(tableHasOrder(t.id)||t.seated)occupied++;else if(t.reservation)reserved++;else available++});return{available,occupied,reserved,attention}}
 function tableOrderTotal(id){const o=state.tableOrders[id];if(!o)return 0;return(o.cart||[]).reduce((s,c)=>{const m=menuItem(c.id);return s+(m?m.price*c.qty:0)},0)}
 function unservedCountForOrder(o){return(o?.cart||[]).reduce((s,x)=>s+Math.max(0,Number(x.qty||0)-Number(x.served||0)),0)}
 function servedCountForOrder(o){return(o?.cart||[]).reduce((s,x)=>s+Math.min(Number(x.qty||0),Number(x.served||0)),0)}
@@ -1376,18 +1376,22 @@ async function init(){
   installCriticalFallbacks();
   try{renderActive()}catch(err){console.error('Initial UI error',err)}
 
-  const serverLoaded=await withTimeout(serverStateGet(),1200,null);
+  const serverLoaded=await withTimeout(serverStateGet(),30000,null);
   let browserLoaded=await withTimeout(dbGet(),1200,null);
   if(!browserLoaded){try{browserLoaded=JSON.parse(localStorage.getItem(DB_NAME)||'null')}catch{}}
   if(!browserLoaded){try{const legacy=JSON.parse(localStorage.getItem(LEGACY_KEY)||'null');if(legacy)browserLoaded=legacyToNew(legacy)}catch{}}
   const stamp=x=>{const t=Date.parse(x?.stateUpdatedAt||'');return Number.isFinite(t)?t:0};
-  const loaded=serverLoaded&&browserLoaded?(stamp(browserLoaded)>=stamp(serverLoaded)?browserLoaded:serverLoaded):(browserLoaded||serverLoaded);
+  let loaded=browserLoaded||serverLoaded;
+  if(serverLoaded&&browserLoaded){
+    if(serverLoaded.setup&&!browserLoaded.setup)loaded=serverLoaded;
+    else if(browserLoaded.setup&&!serverLoaded.setup)loaded=browserLoaded;
+    else loaded=stamp(browserLoaded)>=stamp(serverLoaded)?browserLoaded:serverLoaded;
+  }
   if(loaded){state=repairState(loaded);rebuildIndex()}
   ownerWorkingDate=null;ownerWorkingDateUnlocked=false;try{sessionStorage.removeItem('teaAmoWorkingDate')}catch{}
   updateWorkingDateUI();
 
-  Promise.resolve(persistNow('startup_sync')).catch(err=>console.error('Background save error',err));
-  if(!state.setup)$('setupModal').classList.add('show');
+  if(loaded)Promise.resolve(persistNow('startup_sync')).catch(err=>console.error('Background save error',err));
   document.querySelectorAll('#inventoryTabs button').forEach(b=>b.onclick=()=>{activeInvTab=b.dataset.tab;document.querySelectorAll('.invtab').forEach(x=>x.classList.toggle('hidden',x.id!==`inv-${activeInvTab}`));document.querySelectorAll('#inventoryTabs button').forEach(x=>x.classList.toggle('active',x===b));renderInventoryActive()});
   window.addEventListener('resize',debounce(()=>{if(activeSection==='dashboard')renderDashboardCharts();if(activeSection==='reports')renderSellerAnalytics()},120));
   $('menuSearch').oninput=debounce(renderMenu,60);$('catFilter').onchange=renderMenu;
@@ -1505,7 +1509,6 @@ $('backupBtn').onclick=()=>download(`TEA_AMO_BACKUP_${businessDayKey()}.json`,JS
   };
   $('saveIngredientEdit').onclick=()=>{const name=$('editIngName').value.trim(),unit=$('editIngUnit').value.trim();if(!name||!unit)return alert('Name and unit are required.');if(editingIngredientKey){const i=ingredient(editingIngredientKey),old=i.stock;Object.assign(i,{name,unit,stock:Number($('editIngStock').value||0),avg_cost:Number($('editIngCost').value||0),reorder:Number($('editIngReorder').value||0),target:Number($('editIngTarget').value||0),shelf_life_days:Number($('editIngShelfLife').value||0),preferred_vendor_id:Number($('editIngVendor').value)||null,notes:$('editIngNotes').value.trim(),location:$('editIngLocation').value,active:$('editIngActive').checked});if(old!==i.stock)state.inventoryLog.unshift({id:Date.now(),time:new Date().toISOString(),ingredient_key:i.key,qty_delta:i.stock-old,reason:'manual_adjustment',note:'Ingredient editor'})}else{let key=slugKey(name),base=key,n=2;while(index.ingredients.has(key))key=base+'-'+n++;state.ingredients.push({key,name,unit,stock:Number($('editIngStock').value||0),avg_cost:Number($('editIngCost').value||0),reorder:Number($('editIngReorder').value||0),target:Number($('editIngTarget').value||0),shelf_life_days:Number($('editIngShelfLife').value||0),preferred_vendor_id:Number($('editIngVendor').value)||null,notes:$('editIngNotes').value.trim(),location:$('editIngLocation').value,active:$('editIngActive').checked})}rebuildIndex();saveSoon();$('ingredientModal').classList.remove('show');renderInventoryStock()};
   $('cancelIngredientEdit').onclick=()=>$('ingredientModal').classList.remove('show');
-  $('finishSetup').onclick=async()=>{const p=$('setupPass').value;if(p.length<8)return alert('Password must be at least 8 characters.');if(p!==$('setupPass2').value)return alert('Passwords do not match.');state.business={...state.business,name:$('setupBusiness').value.trim()||'TEA AMO',branch:$('setupBranch').value.trim()||'Main Branch',currency:$('setupCurrency').value.trim()||'Rs',taxRate:Number($('setupTax').value||0)};await setOwnerPassword(p);state.setup=true;if(!await persistNow('initial_setup'))return alert('Setup could not be saved. Please retry.');$('setupModal').classList.remove('show');renderActive()};
   window.addEventListener('beforeunload',()=>{if(savePending)dbPut(state)});
   setInterval(()=>{updateTop();if(document.visibilityState!=='visible')return;if(activeSection==='dashboard')renderDashboard();else if(activeSection==='dayclose')renderDayClose();else if(activeSection==='staff')renderStaff()},45000);
 
@@ -1742,4 +1745,5 @@ renderDayClose=function(){
 };
 // ===== END FINAL WORKING-DATE OVERRIDES =====
 
-init();
+window.TEA_AMO_BOOT = init;
+if (!window.TEA_AMO_CLOUD) init();

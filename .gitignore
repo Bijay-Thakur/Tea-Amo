@@ -1,0 +1,14 @@
+node_modules/
+.wrangler/
+.vercel/
+.seed/
+.dev.vars
+.env
+.env.local
+backups/
+*.log
+master-state.json.bak
+master-state.json.tmp
+lan-state.json.tmp
+.vercel
+.env*.local

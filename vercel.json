@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "functions": {
+    "api/index.mjs": {
+      "includeFiles": "public/**"
+    }
+  },
+  "routes": [
+    { "src": "/", "dest": "/api/index?__path=" },
+    { "src": "/index.html", "dest": "/api/index?__path=index.html" },
+    { "src": "/admin", "dest": "/api/index?__path=admin" },
+    { "src": "/server", "dest": "/api/index?__path=server" },
+    { "src": "/staff", "dest": "/api/index?__path=staff" },
+    { "src": "/staff.html", "dest": "/api/index?__path=staff.html" },
+    { "src": "/favicon.ico", "dest": "/api/index?__path=favicon.ico" },
+    { "src": "/tea-amo-floor-plan.png", "dest": "/api/index?__path=tea-amo-floor-plan.png" },
+    { "src": "/api/(.*)", "dest": "/api/index?__path=api/$1" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/api/index?__path=$1" }
+  ]
+}

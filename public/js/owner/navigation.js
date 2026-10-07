@@ -5,6 +5,7 @@
     menuadmin: ['Menu Management', 'Add items, update prices and control what appears in POS.'],
     dayclose: ['Business Day', 'Open, review and close the business day when you decide.'],
     staff: ['Staff & Attendance', 'Manage team members, attendance and staff access.'],
+    servers: ['Servers', 'Create and manage accounts that can sign in to the Server workspace.'],
     inventory: ['Inventory', 'Track kitchen and bar stock with clear movement records.'],
     recipes: ['Recipes', 'Connect menu items to ingredient usage and automatic stock deduction.'],
     wastage: ['Wastage', 'Record stock loss and understand its cost.'],

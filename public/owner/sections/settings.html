@@ -51,33 +51,30 @@
   <div class="scroll" style="margin-top:10px"><table><thead><tr><th>Payment Method</th><th>Type</th><th>QR</th><th>Action</th></tr></thead><tbody id="paymentMethodBody"></tbody></table></div>
 </div>
 <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
-<h3>Staff Phone Access</h3>
+<h3>Server Phone Access</h3>
 <div class="notice">
-  Run the included TEA AMO LAN Server and staff can take table orders from their phones on the same café Wi-Fi. Their screen is restricted to table ordering; payment, reports, payroll, inventory costs, expenses, resets and owner settings stay on the main POS.
+  Servers sign in at the same TEA AMO address and open the phone workspace. That screen is limited to tables, orders and ordinary payment. Menu prices, inventory, payroll, expenses, reports, backups and resets stay in Administration.
 </div>
 <div class="grid g2">
   <div class="statbox">
-    <div class="sub">LAN Sync</div>
+    <div class="sub">Live sync</div>
     <b id="lanSyncStatus">LOCAL-ONLY</b>
     <div class="sub" id="lanSyncDetail" style="margin-top:5px">Launch through the included server to enable staff phones.</div>
   </div>
   <div class="statbox">
-    <div class="sub">Staff URL</div>
+    <div class="sub">Server address</div>
     <b id="lanStaffUrl" style="font-size:12px;word-break:break-all">—</b>
-    <div class="sub" style="margin-top:5px">Phones must be on the same Wi-Fi as the POS laptop.</div>
+    <div class="sub" style="margin-top:5px">Same site as Administration. No second deployment.</div>
   </div>
 </div>
 <div class="toolbar" style="margin-top:10px">
-  <button class="btn" id="lanSyncNow">Sync Menu, Tables & Staff Access</button>
-  <button class="btn alt" id="lanCopyStaffUrl">Copy Staff URL</button>
+  <button class="btn" id="lanSyncNow">Sync Menu &amp; Tables</button>
+  <button class="btn alt" id="lanCopyStaffUrl">Copy Server Address</button>
 </div>
-<div class="sub">For each employee: Staff → Edit Profile → enable Phone ordering access → assign a 4–6 digit PIN.</div>
-<div class="notice" style="margin-top:10px">
-  <b>Android + iPhone:</b> use the exact Staff URL shown here. Staff phones must be on the same café Wi-Fi. On Android, if Chrome cannot open it, temporarily disable VPN/mobile data while testing and set Private DNS to Automatic/Off.
-</div>
+<div class="sub">Create each phone login from Servers. Link it to a staff profile when the person is already in Staff &amp; Attendance. Accounts are enabled or disabled there.</div>
 <div class="toolbar" style="margin-top:8px">
-  <button class="btn alt" id="lanRefreshNetwork">Refresh Staff Link</button>
-  <button class="btn alt" id="lanOpenStaffTest">Open Staff Page Test</button>
+  <button class="btn alt" id="lanRefreshNetwork">Refresh Server Address</button>
+  <button class="btn alt" id="lanOpenStaffTest">Open Server Page</button>
 </div>
 
 

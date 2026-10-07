@@ -391,23 +391,68 @@ body.clay .empty-state {
 }
 
 @media (max-width: 760px) {
-  body.clay .app { grid-template-columns: 84px minmax(0, 1fr); }
-  body.clay .side { padding: 12px 8px; border-radius: 28px; }
-  body.clay .brand { justify-content: center; }
+  body.clay .app { display: block; padding: 8px; }
+  body.clay .side {
+    position: sticky;
+    top: 0;
+    height: auto;
+    max-height: none;
+    z-index: 40;
+    padding: 10px;
+    border-radius: 22px;
+  }
+  body.clay .brand { justify-content: flex-start; margin-bottom: 8px; }
+  body.clay .clay-mark { width: 42px; height: 42px; flex-basis: 42px; border-radius: 14px; }
   body.clay .brand-copy,
-  body.clay .brand small,
-  body.clay .nav span,
+  body.clay .nav span { display: revert; }
+  body.clay .brand small { display: none; }
   body.clay .nav-group-label { display: none; }
-  body.clay .nav .nav-ico { display: inline-block; font-size: 18px; }
-  body.clay .clay-mark { width: 48px; height: 48px; flex-basis: 48px; border-radius: 18px; }
-  body.clay .nav button { justify-content: center; }
+  body.clay .nav {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  body.clay .nav button {
+    width: auto;
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    white-space: nowrap;
+    margin: 0;
+    min-height: 42px;
+  }
+  body.clay main { padding: 12px 4px 28px; }
+  body.clay .welcome-strip { align-items: stretch; padding: 14px; }
+  body.clay .eyebrow { letter-spacing: .08em; line-height: 1.4; }
+  body.clay .welcome-strip h2 { font-size: 20px; line-height: 1.25; }
+  body.clay .welcome-actions { width: 100%; }
+  body.clay .metric .k { letter-spacing: .03em; line-height: 1.35; }
+  body.clay .metric .v { font-size: 22px; line-height: 1.15; overflow-wrap: anywhere; }
+  body.clay .floor-head { align-items: stretch; }
+  body.clay .floor-head select { min-width: 0; max-width: 100%; }
+  body.clay .top-title h1 { font-size: 22px; line-height: 1.2; }
+  body.clay #clockText,
+  body.clay .sub,
+  body.clay .notice,
+  body.clay .card h2 { line-height: 1.4; }
+  body.clay .card h2 { overflow-wrap: anywhere; }
+  body.clay .scroll,
+  body.clay .chart-wrap { max-width: 100%; overflow-x: auto; }
+  body.clay .srow { gap: 12px; }
+  body.clay .srow span { min-width: 0; overflow-wrap: anywhere; }
 }
 
 @media (max-width: 700px) {
   body.clay .app { padding: 8px; }
-  body.clay main { padding: 4px 2px 24px; }
+  body.clay main { padding: 12px 2px 28px; }
   body.clay .card,
   body.clay .welcome-strip { border-radius: 22px; }
+  body.clay .g4,
+  body.clay .g3,
+  body.clay .g2,
+  body.clay .table-summary { grid-template-columns: 1fr !important; }
+  body.clay .welcome-actions { display: grid; grid-template-columns: 1fr; }
+  body.clay .welcome-actions .btn { width: 100%; }
 }
 
 @media print {

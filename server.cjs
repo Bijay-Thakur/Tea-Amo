@@ -63,6 +63,7 @@ const server=http.createServer(async(req,res)=>{
       return json(res,404,{error:'Unknown admin endpoint'});
     }
 
+    if(p.startsWith('/api/staff/')&&process.env.TEA_AMO_LEGACY_LAN!=='1')return json(res,410,{error:'LAN PIN login is retired. Sign in at the TEA AMO home page.'});
     if(p==='/api/staff/bootstrap'&&req.method==='GET')return json(res,200,{business:db.config.business||{},staff:safeStaff()});
     if(p==='/api/staff/login'&&req.method==='POST'){
       const body=await parseBody(req),st=(db.config.staff||[]).find(x=>String(x.id)===String(body.staff_id)&&x.enabled);
@@ -90,10 +91,12 @@ const server=http.createServer(async(req,res)=>{
     }
 
     if(p==='/'||p==='/index.html'){
+      if(process.env.TEA_AMO_LEGACY_LAN!=='1')return text(res,200,'TEA AMO sign-in is the Vercel deployment, or npm run dev on this computer.\nThe laptop JSON server is only a fallback: set TEA_AMO_LEGACY_LAN=1.\n');
       if(!isLocal(req))return res.writeHead(302,{Location:'/staff'}).end();
       return text(res,200,ownerPage(),'text/html; charset=utf-8');
     }
     if(p==='/favicon.ico')return serveStatic(res,'/assets/favicon.ico');
+    if((p==='/staff'||p==='/staff.html')&&process.env.TEA_AMO_LEGACY_LAN!=='1')return text(res,410,'The staff PIN page has been retired. Open /server on the TEA AMO deployment.\n');
     if(p==='/staff'||p==='/staff.html')return serveStatic(res,'/staff.html');
     if(p==='/tea-amo-floor-plan.png')return serveStatic(res,'/assets/tea-amo-floor-plan.png');
     if(p.startsWith('/styles/')||p.startsWith('/js/')||p.startsWith('/assets/'))return serveStatic(res,p);
@@ -102,7 +105,13 @@ const server=http.createServer(async(req,res)=>{
 });
 
 server.listen(PORT,HOST,()=>{
-  console.log(`TEA AMO owner POS: http://127.0.0.1:${PORT}`);
-  console.log('Staff URLs:');for(const u of networkUrls())console.log('  '+u);
-  console.log('Owner/admin API is restricted to this laptop.');
+  if(process.env.TEA_AMO_LEGACY_LAN==='1'){
+    console.log(`TEA AMO legacy owner POS: http://127.0.0.1:${PORT}`);
+    console.log('Legacy staff URLs:');for(const u of networkUrls())console.log('  '+u);
+    console.log('This JSON/LAN mode is a fallback. Production sign-in is the Vercel deployment.');
+    return;
+  }
+  console.log('TEA AMO laptop JSON server is in retired mode.');
+  console.log('Use npm run dev, or the Vercel deployment, for Administration and Server sign-in.');
+  console.log('Set TEA_AMO_LEGACY_LAN=1 only if you intentionally need the old Wi-Fi PIN flow.');
 });

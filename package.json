@@ -1,0 +1,19 @@
+{
+  "name": "tea-amo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server/dev.mjs",
+    "dev": "node server/dev.mjs",
+    "deploy": "vercel deploy --prod",
+    "auth:bootstrap": "node scripts/bootstrap-admin.mjs",
+    "data:migrate": "node scripts/migrate-master.mjs",
+    "test:cloud": "node scripts/verify-ops.mjs",
+    "test:sql": "node scripts/verify-sql.mjs",
+    "test:gateway": "node scripts/verify-gateway.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "vercel": "^48.2.9"
+  }
+}

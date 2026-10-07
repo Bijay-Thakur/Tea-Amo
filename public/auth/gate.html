@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#153c35">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<title>TEA AMO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/auth.css">
+</head>
+<body class="auth-gate">
+<main class="auth-card">
+  <img class="auth-logo" src="/assets/tea-amo-logo.png" alt="Tea Amo">
+  <h1>TEA AMO</h1>
+  <p class="auth-lead">Continue as</p>
+  <div class="auth-roles" role="group" aria-label="Role">
+    <button type="button" id="roleAdmin" class="auth-role">Administration</button>
+    <button type="button" id="roleServer" class="auth-role">Server</button>
+  </div>
+  <form id="authForm" class="auth-form" hidden>
+    <label>Username<input id="username" name="username" autocomplete="username" required></label>
+    <label>Password<input id="password" name="password" type="password" autocomplete="current-password" required></label>
+    <button type="submit" id="signIn">Sign in</button>
+    <button type="button" class="auth-back" id="changeRole">Choose a different role</button>
+  </form>
+  <p id="authStatus" class="auth-status" role="status"></p>
+</main>
+<script src="/js/auth/gate.js"></script>
+</body>
+</html>

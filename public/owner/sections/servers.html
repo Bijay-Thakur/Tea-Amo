@@ -1,0 +1,49 @@
+<section id="servers">
+  <div class="card">
+    <div class="floor-head">
+      <div>
+        <h2 style="margin:0">Server Management</h2>
+        <div class="sub">Login accounts for the phone Server workspace. Staff profiles stay in Staff &amp; Attendance.</div>
+      </div>
+      <button class="btn" type="button" id="openCreateServer">Create Server</button>
+    </div>
+    <div id="serverStatus" class="notice hidden"></div>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Username</th>
+            <th>Account</th>
+            <th>Duty</th>
+            <th>Presence</th>
+            <th>Last activity</th>
+            <th>Last login</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="serverRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal" id="serverModal">
+    <div class="box">
+      <h2 id="serverModalTitle">Create Server</h2>
+      <div class="sub">This creates the sign-in and the Server profile together. There is no public registration.</div>
+      <div class="grid g2" style="margin-top:12px">
+        <label>Name<input id="serverDisplayName" autocomplete="off"></label>
+        <label>Username<input id="serverUsername" autocomplete="off" placeholder="letters and numbers"></label>
+        <label>Linked staff profile
+          <select id="serverStaffLink"><option value="">No staff profile</option></select>
+        </label>
+        <label id="serverPasswordLabel">Initial password<input id="serverPassword" type="password" autocomplete="new-password"></label>
+      </div>
+      <div class="toolbar" style="margin-top:12px">
+        <button class="btn" type="button" id="saveServerAccount">Save</button>
+        <button class="btn alt" type="button" id="closeServerModal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</section>

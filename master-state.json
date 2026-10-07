@@ -22364,7 +22364,7 @@
   ],
   "schemaVersion": 3,
   "menuCatalogVersion": "2026-10-06-handwritten-menu-final-v2",
-  "stateUpdatedAt": "2026-10-07T03:40:24.513Z",
+  "stateUpdatedAt": "2026-10-07T04:05:54.315Z",
   "passwordAuth": {
     "algorithm": "PBKDF2-SHA256",
     "iterations": 210000,

@@ -1,0 +1,54 @@
+{
+  "migrated_at": "2026-10-07T05:46:15.650Z",
+  "backup": "D:\\Projects\\TEA_AMO\\backups\\master-state.pre-cloud.json",
+  "sales_inserted": 160,
+  "sales_already_present": 0,
+  "legacy_files_kept": [
+    "master-state.json",
+    "lan-state.json"
+  ],
+  "counts": {
+    "menu": {
+      "source": 89,
+      "database": 89
+    },
+    "staff": {
+      "source": 2,
+      "database": 2
+    },
+    "attendance": {
+      "source": 0,
+      "document": 0
+    },
+    "bills": {
+      "source": 160,
+      "database": 160
+    },
+    "sales_total": {
+      "source": 105021,
+      "database": 105021
+    },
+    "inventory": {
+      "source": 71,
+      "database": 71
+    },
+    "vendors": {
+      "source": 0,
+      "document": 0
+    },
+    "expenses": {
+      "source": 106,
+      "document": 106
+    },
+    "customers": {
+      "source": 0,
+      "document": 0
+    },
+    "tables": {
+      "source": 15,
+      "database": 15
+    }
+  },
+  "ok": true,
+  "mismatches": []
+}

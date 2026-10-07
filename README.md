@@ -1,43 +1,106 @@
 # TEA AMO
 
-Cafe operating system for Tea Amo. The owner point of sale runs on the cafe laptop. Staff take table orders from phones on the same Wi-Fi.
+Cafe operating system for Tea Amo. One Vercel address serves both roles. Supabase is the database.
 
-## Start
+- `/` sign in
+- `/admin` Administration (the existing owner workspace)
+- `/server` Server, the phone workspace for waiters
 
-1. Install [Node.js](https://nodejs.org/) LTS.
-2. Double-click `RUN_TEA_AMO_SERVER.bat`.
-3. The owner screen opens at [http://127.0.0.1:8787](http://127.0.0.1:8787).
+There is no public registration. An administrator creates every Server account.
 
-From a terminal, the same start is:
+## Roles
 
-```bash
-node server.js
-```
+| Role | Database value | Opens |
+| --- | --- | --- |
+| Administration | `admin` | `/admin` |
+| Server | `server_staff` | `/server` |
 
-The server prints the staff address, for example `http://192.168.1.214:8787/staff`. Phones must be on the cafe Wi-Fi. The owner screen is only available on this laptop.
+The role in `profiles` is what the Worker and the database trust. A Server who opens `/admin` is sent back to `/server`. Menu prices, inventory, payroll, reports, backups and account creation are not writable by a Server, including by calling the API directly.
 
-Set `TEA_AMO_PORT` if 8787 is already in use.
+## What stayed
 
-## What it covers
+The Administration screens are the current owner application: floor POS, billing, business day, menu, customers, inventory, recipes, wastage, vendors, staff and attendance, expenses, owner funds, reports, dining time, settings, backup, restore, payment correction and owner-password confirmations.
 
-- Floor-plan POS, counter orders, split bills, mixed payments, and receipts
-- Menu, recipes, kitchen and bar inventory, wastage, and vendors
-- Staff, attendance, and phone ordering with a PIN
-- Expenses, owner cash, and the daily business report
-- Sales charts, item sales, and backup or restore from Settings
+Servers is a new Administration section for phone logins. It does not replace Staff & Attendance.
+
+The Server phone screen keeps table service: the TEA AMO floor, orders, served counts, guests, discounts, totals, payment methods, payment QR and completion.
+
+## Data
+
+Live tables and payments are rows in Supabase, with a version check on each order and one idempotent payment function. Two phones cannot silently overwrite the same order, and two payment attempts cannot create two sales.
+
+The rest of the café record (menu editing, stock, bills already merged into the record, expenses, staff, attendance, settings) is still the Administration document, stored in `business_documents`. Payments, stock movements from those payments, and open orders are applied from the normalized tables whenever that document is read or saved.
+
+`master-state.json` and `lan-state.json` stay in the repository as the legacy export. Do not delete them. They are not the live store after migration.
 
 ## Layout
 
 ```
-server.js                 Local server and saved-data API
-RUN_TEA_AMO_SERVER.bat    Windows start
-master-state.json         Cafe records: menu, bills, stock, staff
-lan-state.json            Live table orders shared with staff phones
-public/owner/             Owner screens
-public/staff.html         Staff phone page
-public/styles/            Layout and ink-and-paper theme
-public/js/                Catalog, owner logic, staff logic, shared UI
-public/assets/            Logo, favicon, and floor plan
+src/index.js                         Request handler: routes, sessions, role checks
+src/ops.js                           Orders, payments, catalog sync, Server accounts
+supabase/migrations/                 Postgres schema, RLS, realtime, payment function
+public/auth/                         Sign-in screen
+public/server/                       Phone Server workspace
+public/owner/                        Administration screens
+public/js/admin/cloud-bridge.js      Connects the owner app to cloud orders and payments
+public/js/admin/servers.js           Server account screen
+scripts/migrate-master.mjs           Imports master-state.json and writes a count report
+scripts/bootstrap-admin.mjs          Creates the first Administration account
+scripts/verify-ops.mjs               Checks conflicts, one payment, and Server denial
+server.cjs                           Retired laptop JSON/LAN server
 ```
 
-`master-state.json` and `lan-state.json` are the working data. Do not delete them.
+## Environment
+
+Copy `.env.example` to `.env`. Never commit that file.
+
+```
+SUPABASE_URL
+SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+TEA_AMO_ADMIN_USERNAME
+TEA_AMO_ADMIN_EMAIL
+TEA_AMO_ADMIN_PASSWORD
+TEA_AMO_ADMIN_NAME
+```
+
+The anon key is public and is injected into the signed-in Administration page. The service-role key stays on the server and in the migration scripts. It is not placed in browser JavaScript.
+
+## Local setup
+
+1. Create a Supabase project and run `npx supabase link` then `npx supabase db push`.
+2. Put the project URL, anon key, and service-role key in `.env`, plus the first Administration login.
+3. `npm run auth:bootstrap`
+4. `npm run data:migrate`
+5. `npm run dev` and open `http://127.0.0.1:8788`
+
+Sign in as Administration with `TEA_AMO_ADMIN_USERNAME` and `TEA_AMO_ADMIN_PASSWORD`. Create Server accounts from Administration → Servers.
+
+The migration adds `live_orders`, `order_items`, `cafe_tables`, and `sales` to the `supabase_realtime` publication.
+
+## Vercel deploy
+
+Hosting is one Vercel project. Supabase remains the database.
+
+1. `npx vercel login`
+2. `npx vercel link`
+3. Add `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in the Vercel project settings. Use the hosted Supabase project, not `127.0.0.1`.
+4. `npm run deploy`
+
+The printed URL serves `/`, `/admin`, and `/server`.
+
+## Server accounts
+
+Administration → Servers → Create Server. The Worker creates the Auth user and the `profiles` row together. If the profile insert fails, the Auth user is deleted. Server users cannot create accounts.
+
+A disabled account loses database access on the next request. Resetting a password signs out existing sessions.
+
+Presence is online when `last_seen_at` is within 90 seconds. The phone sends that about every 30 seconds. On duty still means clocked in on the staff profile for the business day. Offline, off duty and disabled are different.
+
+## Legacy laptop server
+
+`node server.cjs` no longer accepts staff PIN login unless `TEA_AMO_LEGACY_LAN=1`. That flag is only a fallback while the cloud database is being checked. Do not expose the PIN listener on the public internet.
+
+## Owner password
+
+Signing in as Administration is separate from the existing owner password. Backup restore, reset, payment correction, historical dates, attendance corrections and non-chargeable orders still ask for that password.
