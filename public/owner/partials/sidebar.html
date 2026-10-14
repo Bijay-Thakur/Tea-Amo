@@ -1,6 +1,6 @@
-<aside class="side">
-  <div class="brand"><div class="clay-mark"><img src="/assets/tea-amo-logo.png" alt="Tea Amo"></div><div class="brand-copy"><b>TEA AMO</b><small>Cafe Operating System</small></div></div>
-  <div class="nav" id="nav">
+<aside class="side" id="ownerSidebar">
+  <div class="brand"><div class="clay-mark"><img src="/assets/tea-amo-logo.png" alt="Tea Amo"></div><div class="brand-copy"><b>TEA AMO</b><small>Cafe Operating System</small></div><button id="ownerMenuToggle" class="owner-menu-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="nav"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></button></div>
+  <nav class="nav" id="nav" aria-label="Administration">
     <div class="nav-group-label">Overview</div>
     <button class="active" data-sec="dashboard" onclick="hardNav('dashboard')"><span class="nav-ico">⌂</span><span>Dashboard</span></button>
 
@@ -29,5 +29,7 @@
 
     <div class="nav-group-label">System</div>
     <button data-sec="settings" onclick="hardNav('settings')"><span class="nav-ico">⚙</span><span>Settings & Backup</span></button>
-  </div>
+    <button id="cloudLogoutAction" class="nav-logout" type="button"><span class="nav-ico" aria-hidden="true">↪</span><span>Log out</span></button>
+  </nav>
 </aside>
+<button id="ownerMenuBackdrop" class="owner-menu-backdrop" type="button" aria-label="Close navigation menu"></button>

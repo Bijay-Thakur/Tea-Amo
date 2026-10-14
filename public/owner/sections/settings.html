@@ -17,30 +17,39 @@
 
 <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
 <h3>Payment Methods & QR Codes</h3>
-<div class="notice">
-  eSewa, Khalti and Fonepay are shown at the top for quick QR management. Use <b>Remove Method</b> to remove a payment option completely from POS, Split Bill and Mixed Payment. You can add it back later with Add Payment Method.
-</div>
+<div class="sub payment-qr-intro">Upload a square QR image for each digital payment method.</div>
 <div class="grid g3 payment-qr-settings" id="quickQrMethods">
-  <div class="statbox" data-quick-method="eSewa">
-    <b>eSewa</b>
-    <img id="qrPreviewESewa" class="qr-preview hidden" alt="eSewa QR preview">
-    <label class="btn alt" style="margin-top:8px">Upload / Replace QR<input id="qrUploadESewa" type="file" accept="image/*" hidden></label>
-    <button class="btn danger" type="button" id="qrRemoveMethodESewa" style="margin-top:6px">Remove Method</button>
+  <div class="statbox qr-method-card" data-quick-method="eSewa">
+    <div class="qr-method-head"><b>eSewa</b><span class="qr-method-status">No QR</span></div>
+    <div class="qr-method-body">
+      <div class="qr-method-art"><img id="qrPreviewESewa" class="qr-preview hidden" alt="eSewa QR preview"><span class="qr-method-empty">No QR yet</span></div>
+      <div class="qr-method-controls">
+        <button class="qr-upload-btn" type="button" onclick="document.getElementById('qrUploadESewa').click()">Upload QR</button><input id="qrUploadESewa" type="file" accept="image/*" hidden>
+        <details class="qr-method-more"><summary>More options</summary><div class="qr-more-actions"><button type="button" onclick="clearPaymentQr('eSewa')">Remove QR</button><button type="button" id="qrRemoveMethodESewa">Remove method</button></div></details>
+      </div>
+    </div>
   </div>
-  <div class="statbox" data-quick-method="Khalti">
-    <b>Khalti</b>
-    <img id="qrPreviewKhalti" class="qr-preview hidden" alt="Khalti QR preview">
-    <label class="btn alt" style="margin-top:8px">Upload / Replace QR<input id="qrUploadKhalti" type="file" accept="image/*" hidden></label>
-    <button class="btn danger" type="button" id="qrRemoveMethodKhalti" style="margin-top:6px">Remove Method</button>
+  <div class="statbox qr-method-card" data-quick-method="Khalti">
+    <div class="qr-method-head"><b>Khalti</b><span class="qr-method-status">No QR</span></div>
+    <div class="qr-method-body">
+      <div class="qr-method-art"><img id="qrPreviewKhalti" class="qr-preview hidden" alt="Khalti QR preview"><span class="qr-method-empty">No QR yet</span></div>
+      <div class="qr-method-controls">
+        <button class="qr-upload-btn" type="button" onclick="document.getElementById('qrUploadKhalti').click()">Upload QR</button><input id="qrUploadKhalti" type="file" accept="image/*" hidden>
+        <details class="qr-method-more"><summary>More options</summary><div class="qr-more-actions"><button type="button" onclick="clearPaymentQr('Khalti')">Remove QR</button><button type="button" id="qrRemoveMethodKhalti">Remove method</button></div></details>
+      </div>
+    </div>
   </div>
-  <div class="statbox" data-quick-method="Fonepay">
-    <b>Fonepay</b>
-    <img id="qrPreviewFonepay" class="qr-preview hidden" alt="Fonepay QR preview">
-    <label class="btn alt" style="margin-top:8px">Upload / Replace QR<input id="qrUploadFonepay" type="file" accept="image/*" hidden></label>
-    <button class="btn danger" type="button" id="qrRemoveMethodFonepay" style="margin-top:6px">Remove Method</button>
+  <div class="statbox qr-method-card" data-quick-method="Fonepay">
+    <div class="qr-method-head"><b>Fonepay</b><span class="qr-method-status">No QR</span></div>
+    <div class="qr-method-body">
+      <div class="qr-method-art"><img id="qrPreviewFonepay" class="qr-preview hidden" alt="Fonepay QR preview"><span class="qr-method-empty">No QR yet</span></div>
+      <div class="qr-method-controls">
+        <button class="qr-upload-btn" type="button" onclick="document.getElementById('qrUploadFonepay').click()">Upload QR</button><input id="qrUploadFonepay" type="file" accept="image/*" hidden>
+        <details class="qr-method-more"><summary>More options</summary><div class="qr-more-actions"><button type="button" onclick="clearPaymentQr('Fonepay')">Remove QR</button><button type="button" id="qrRemoveMethodFonepay">Remove method</button></div></details>
+      </div>
+    </div>
   </div>
 </div>
-<div class="sub" style="margin-top:8px">Use a clear square QR image. QR images stay stored with the café data.</div>
 <div class="card" style="margin-top:12px;padding:12px">
   <h3 style="margin-top:0">Add Payment Method</h3>
   <div class="toolbar">

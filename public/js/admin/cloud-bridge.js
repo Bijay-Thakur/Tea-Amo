@@ -322,46 +322,6 @@
   };
   void localComplete;
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const actions = document.querySelector('.top-actions');
-    if (!actions || document.getElementById('cloudLogout')) return;
-    const wrap = document.createElement('div');
-    wrap.className = 'admin-account';
-    const button = document.createElement('button');
-    button.className = 'quick-btn';
-    button.id = 'cloudLogout';
-    button.type = 'button';
-    button.textContent = 'Admin';
-    button.setAttribute('aria-haspopup', 'menu');
-    button.setAttribute('aria-expanded', 'false');
-    const menu = document.createElement('div');
-    menu.className = 'admin-account-menu hidden';
-    menu.id = 'adminAccountMenu';
-    menu.setAttribute('role', 'menu');
-    const logout = document.createElement('button');
-    logout.type = 'button';
-    logout.id = 'cloudLogoutAction';
-    logout.textContent = 'Log out';
-    logout.onclick = async () => {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-      try { await window.teaSupabase?.auth?.signOut(); } catch {}
-      location.assign('/');
-    };
-    button.onclick = (event) => {
-      event.stopPropagation();
-      const open = menu.classList.toggle('hidden') === false;
-      button.setAttribute('aria-expanded', String(open));
-    };
-    document.addEventListener('click', () => {
-      menu.classList.add('hidden');
-      button.setAttribute('aria-expanded', 'false');
-    });
-    menu.appendChild(logout);
-    wrap.appendChild(button);
-    wrap.appendChild(menu);
-    actions.appendChild(wrap);
-  });
-
   restoreSession().then(() => window.TEA_AMO_BOOT()).catch((error) => {
     console.error(error);
     location.assign('/');

@@ -458,6 +458,7 @@ function renderDashboard(){
   $('dSales').textContent=rs(view.daySales);
   $('dOrders').textContent=view.dayOrders;
   $('dLow').textContent=low.length;
+  $('dLow').closest('.metric')?.classList.toggle('needs-attention',low.length>0);
   $('dWaste').textContent=rs(view.monthWaste);
   let alerts=[];
   if(state.dashboardBaseline)alerts.push(`<div class="good">• Dashboard was cleared on ${esc(nptDateTime(state.dashboardBaseline.clearedAt))} NPT. Reports and all business data remain intact.</div>`);
@@ -465,7 +466,7 @@ function renderDashboard(){
   if(d.rec.finalized)alerts.push('<div class="good">• Current business day is finalized.</div>');
   low.slice(0,12).forEach(i=>alerts.push(`<div class="${i.stock<=0?'bad':'warn'}">• ${esc(i.name)}: ${Number(i.stock).toFixed(3)} ${esc(i.unit)}</div>`));
   $('alerts').innerHTML=alerts.join('')||'No operational alerts.';
-  $('monthSnapshot').innerHTML=`<div class="srow"><span>Sales</span><b>${rs(view.monthSales)}</b></div><div class="srow"><span>Theoretical COGS</span><b>${rs(view.monthCogs)}</b></div><div class="srow"><span>Expenses</span><b>${rs(view.monthExp)}</b></div><div class="srow"><span>Payroll estimate</span><b>${rs(view.monthPay)}</b></div><div class="srow total"><span>Operating contribution</span><span>${rs(view.monthSales-view.monthCogs-view.monthExp-view.monthPay)}</span></div>`;const ts=tableStatusCounts();$('dashTableAvailable').textContent=ts.available;$('dashTableOccupied').textContent=ts.occupied;$('dashTableReserved').textContent=ts.reserved;$('dashTableAttention').textContent=ts.attention;
+  $('monthSnapshot').innerHTML=`<div class="srow"><span>Sales</span><b>${rs(view.monthSales)}</b></div><div class="srow"><span>Theoretical COGS</span><b>${rs(view.monthCogs)}</b></div><div class="srow"><span>Expenses</span><b>${rs(view.monthExp)}</b></div><div class="srow"><span>Payroll estimate</span><b>${rs(view.monthPay)}</b></div><div class="srow total"><span>Operating contribution</span><span>${rs(view.monthSales-view.monthCogs-view.monthExp-view.monthPay)}</span></div>`;const ts=tableStatusCounts();$('dashTableAvailable').textContent=ts.available;$('dashTableOccupied').textContent=ts.occupied;$('dashTableReserved').textContent=ts.reserved;$('dashTableAttention').textContent=ts.attention;$('dashTableAttention').closest('.statbox')?.classList.toggle('needs-attention',ts.attention>0);
   requestAnimationFrame(renderDashboardCharts);
 }
 let menuSearchCache='',activeTableId=null,reservationTableId=null,checkoutBusy=false;
@@ -1181,7 +1182,12 @@ function renderQrSettings(){
   const map=[['eSewa','qrPreviewESewa'],['Khalti','qrPreviewKhalti'],['Fonepay','qrPreviewFonepay']];
   for(const [method,id] of map){
     const el=$(id),qr=paymentQrFor(method);if(!el)continue;
-    el.classList.toggle('hidden',!qr);if(qr)el.src=qr;else el.removeAttribute('src')
+    el.classList.toggle('hidden',!qr);if(qr)el.src=qr;else el.removeAttribute('src');
+    const card=el.closest('.qr-method-card');
+    card?.querySelector('.qr-method-empty')?.classList.toggle('hidden',!!qr);
+    const status=card?.querySelector('.qr-method-status');if(status){status.textContent=qr?'QR ready':'No QR';status.classList.toggle('ready',!!qr)}
+    const upload=card?.querySelector('.qr-upload-btn');if(upload)upload.textContent=qr?'Replace QR':'Upload QR';
+    const clear=card?.querySelector('.qr-more-actions button');if(clear)clear.disabled=!qr
   }
 }
 async function setPaymentQr(method,file){
@@ -1565,7 +1571,7 @@ $('backupBtn').onclick=()=>download(`TEA_AMO_BACKUP_${businessDayKey()}.json`,JS
   setInterval(()=>{updateTop();if(document.visibilityState!=='visible')return;if(activeSection==='dashboard')renderDashboard();else if(activeSection==='dayclose')renderDayClose();else if(activeSection==='staff')renderStaff()},45000);
 
   if($('payment')){$('payment').addEventListener('change',updateChangeDue);$('cashReceived')?.addEventListener('input',updateChangeDue);updateChangeDue()}
-  installCriticalFallbacks();renderActive();updateLanUI();startLanPolling();
+  installCriticalFallbacks();document.body.dataset.section=activeSection;renderActive();updateLanUI();startLanPolling();
 }
 // ===== TEA AMO REMASTERED MANAGEMENT FEATURES =====
 let inventoryArea='kitchen',mixedPaymentContext=null;
@@ -1816,10 +1822,6 @@ async function completeOperationalReset(){
 isCafeOpen=function(){const r=dayRecord();return !r.finalized&&!r.posClosed};
 posAllowed=function(){const r=dayRecord();return !r.finalized&&!r.posClosed};
 updateTop=function(){
-  const r=dayRecord(),open=posAllowed(),key=businessDayKey(),real=currentRealBusinessDate();
-  if($('clockText'))$('clockText').textContent=`${nptDateTime()} NPT · ${selectedWorkingDate()?'Working date':'Business day'} ${key}${selectedWorkingDate()&&key!==real?' · OWNER EDIT MODE':''}`;
-  if($('branchBadge'))$('branchBadge').textContent=state.business.branch;
-  if($('openBadge'))$('openBadge').innerHTML=selectedWorkingDate()?'<span class="warn">● OWNER DATE MODE</span>':r.finalized?'<span class="warn">● FINALIZED</span>':open?'<span class="good">● POS OPEN</span>':'<span class="bad">● POS CLOSED</span>';
   updateWorkingDateUI()
 };
 const _renderDayCloseWorkingDate=renderDayClose;

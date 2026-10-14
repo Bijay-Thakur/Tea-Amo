@@ -262,7 +262,7 @@ function renderCart() {
     return `<div class="sv-line"><div><b>${esc(item?.name || 'Item')}</b><div class="muted">${line.qty} × ${money(item?.price || 0)}</div><button type="button" class="sv-status ${kind}" data-serve="${id}">${label}</button></div><div class="sv-qty"><button type="button" data-qty="${id}" data-delta="-1" aria-label="Decrease">−</button><b>${line.qty}</b><button type="button" data-qty="${id}" data-delta="1" aria-label="Increase">+</button></div></div>`;
   }).join('') || '<div class="sv-empty">No items yet.</div>';
   renderTotals();
-  updateBillGate();
+  updatePaymentAvailability();
   updateBar();
 }
 function setServed(id, next) {
@@ -351,21 +351,10 @@ async function saveOrder() {
   }
 }
 
-let billPass = { sig: '', ok: false, skipped: false };
-function billSignature() { return (activeTable?.id || '') + '|' + order.cart.map((line) => `${line.id}:${line.qty}`).join(','); }
-function billAccepted() { return billPass.ok && billPass.sig === billSignature(); }
-function updateBillGate() {
-  const note = $('billGateNote');
-  const ready = billAccepted();
-  if (note) note.textContent = !order.cart.length
-    ? 'Add items, then print the bill or skip it.'
-    : ready
-      ? (billPass.skipped ? 'Bill skipped. You can take payment.' : 'Bill printed. You can take payment.')
-      : 'Print the bill before payment, or skip the bill and pay directly.';
+function updatePaymentAvailability() {
   const button = $('completePay');
-  if (button && !button.classList.contains('pay-done')) button.disabled = !ready || paying;
+  if (button && !button.classList.contains('pay-done')) button.disabled = !activeTable || !order.cart.length || paying;
 }
-function markBill(skipped) { billPass = { sig: billSignature(), ok: true, skipped }; updateBillGate(); }
 function staffBillHtml() {
   const totals = calc();
   const lines = order.cart.map((line) => {
@@ -373,13 +362,12 @@ function staffBillHtml() {
     const price = Number(item?.price || 0);
     return `<tr><td>${esc(item?.name || 'Item')}<div>${line.qty} × ${money(price)}</div></td><td class="num">${money(price * Number(line.qty || 0))}</td></tr>`;
   }).join('');
-  return `<div class="print-logo">${esc(cfg.business?.name || 'TEA AMO')}</div><div class="print-subtitle">${esc(cfg.business?.branch || '')}</div><div class="print-title">CUSTOMER BILL</div><div class="print-meta"><div class="print-meta-row"><span>Table</span><b>${esc(activeTable?.name || '')}</b></div><div class="print-meta-row"><span>Status</span><b>UNPAID</b></div></div><table class="print-table"><thead><tr><th>Item</th><th class="num">Amount</th></tr></thead><tbody>${lines}</tbody></table><div class="print-summary"><div class="print-summary-row"><span>Subtotal</span><b>${money(totals.subtotal)}</b></div><div class="print-summary-row"><span>Discount</span><b>- ${money(totals.discount)}</b></div><div class="print-summary-row"><span>Tax</span><b>${money(totals.tax)}</b></div><div class="print-summary-row total"><span>TOTAL</span><b>${money(totals.total)}</b></div></div><div class="print-footer">Please keep this bill. Payment is collected after printing.</div>`;
+  return `<div class="print-logo">${esc(cfg.business?.name || 'TEA AMO')}</div><div class="print-subtitle">${esc(cfg.business?.branch || '')}</div><div class="print-title">CUSTOMER BILL</div><div class="print-meta"><div class="print-meta-row"><span>Table</span><b>${esc(activeTable?.name || '')}</b></div><div class="print-meta-row"><span>Status</span><b>UNPAID</b></div></div><table class="print-table"><thead><tr><th>Item</th><th class="num">Amount</th></tr></thead><tbody>${lines}</tbody></table><div class="print-summary"><div class="print-summary-row"><span>Subtotal</span><b>${money(totals.subtotal)}</b></div><div class="print-summary-row"><span>Discount</span><b>- ${money(totals.discount)}</b></div><div class="print-summary-row"><span>Tax</span><b>${money(totals.tax)}</b></div><div class="print-summary-row total"><span>TOTAL</span><b>${money(totals.total)}</b></div></div><div class="print-footer">Please keep this bill.</div>`;
 }
 function printStaffBill() {
   if (!order.cart.length) return toast('Add items before printing the bill.');
   $('staffBill').innerHTML = staffBillHtml();
   document.body.classList.add('printing-bill');
-  markBill(false);
   window.print();
   setTimeout(() => document.body.classList.remove('printing-bill'), 400);
 }
@@ -388,8 +376,7 @@ function resetPayButton() {
   if (!button) return;
   button.textContent = 'Complete Payment';
   button.classList.remove('pay-done');
-  billPass = { sig: '', ok: false, skipped: false };
-  updateBillGate();
+  updatePaymentAvailability();
 }
 function markPaid() {
   const button = $('completePay');
@@ -422,7 +409,7 @@ function renderPay() {
     $('qrNote').textContent = 'Ask the guest to scan this ' + payMethod + ' QR.';
   }
   updateCashPreview();
-  updateBillGate();
+  updatePaymentAvailability();
 }
 function cashPayload() {
   const total = calc().total;
@@ -434,7 +421,6 @@ function cashPayload() {
 }
 async function takePayment() {
   if (paying || !activeTable || !order.cart.length) return toast('Add items first.');
-  if (!billAccepted()) return toast('Print the bill first, or choose Skip Bill.');
   if (!navigator.onLine) return toast('Offline. Payment was not taken.');
   let cash;
   try { cash = cashPayload(); } catch (error) { return toast(error.message); }
@@ -484,6 +470,7 @@ async function takePayment() {
     if (error.status === 409) await refreshOrder().catch(() => {});
   } finally {
     paying = false;
+    updatePaymentAvailability();
   }
 }
 
@@ -680,7 +667,6 @@ $('payMethods').onclick = (event) => {
 };
 $('saveOrder').onclick = () => saveOrder().then((ok) => { if (ok) toast('Order saved'); });
 $('printBill').onclick = printStaffBill;
-$('skipBill').onclick = () => { if (!order.cart.length) return toast('Add items first.'); markBill(true); toast('Bill skipped'); };
 $('completePay').onclick = takePayment;
 $('reloadConfig').onclick = () => { closeMenu(); loadWorkspace().then(() => toast('Refreshed')).catch((error) => toast(error.message)); };
 $('profileRefresh').onclick = () => loadWorkspace().then(() => toast('Refreshed')).catch((error) => toast(error.message));

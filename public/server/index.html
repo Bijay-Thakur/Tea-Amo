@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles/staff.css">
 <link rel="stylesheet" href="/styles/clay-staff.css">
-<link rel="stylesheet" href="/styles/server.css?v=20261007-ux">
+<link rel="stylesheet" href="/styles/server.css?v=20261014-payment">
 </head>
 <body class="clay server-app">
 <div class="sv-app">
@@ -114,12 +114,10 @@
         <img id="payQr" alt="Payment QR">
         <div id="qrNote" class="muted"></div>
       </div>
-      <div id="billGateNote" class="muted">Print the bill, or skip it, before completing payment.</div>
       <button id="completePay" type="button">Complete Payment</button>
       <button id="saveOrder" class="sv-ghost" type="button">Save Order</button>
       <div class="sv-utility">
-        <button class="sv-ghost" id="printBill" type="button">Print Bill</button>
-        <button class="sv-ghost" id="skipBill" type="button">Skip Bill</button>
+        <button class="sv-ghost" id="printBill" type="button">Print Bill (optional)</button>
       </div>
     </section>
   </main>
@@ -168,6 +166,6 @@
 </div>
 <div id="staffBill" class="staff-bill"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>
-<script src="/js/server/app.js"></script>
+<script src="/js/server/app.js?v=20261014-payment"></script>
 </body>
 </html>
