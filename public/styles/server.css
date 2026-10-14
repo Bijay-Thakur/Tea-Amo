@@ -125,6 +125,24 @@ body.server-app .sv-actions button.danger { background: #fff5f5; color: #a32626;
 body.server-app .sv-empty { padding: 16px 8px; text-align: center; color: #6d6d6d; font-weight: 700; }
 body.server-app .sv-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 body.server-app .staff-bill { display: none; }
+body.server-app .sv-spinner { display: inline-block; width: 16px; height: 16px; margin-right: 8px; vertical-align: -3px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sv-spin .7s linear infinite; }
+@keyframes sv-spin { to { transform: rotate(360deg); } }
+body.server-app .sv-receipt-overlay { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 16px; background: rgba(17,17,17,.55); }
+body.server-app .sv-receipt-card { width: min(460px,100%); max-height: 90dvh; overflow: auto; border-radius: 24px; background: #fff; padding: 20px; box-shadow: 0 24px 80px rgba(0,0,0,.2); }
+body.server-app .sv-receipt-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 14px; }
+body.server-app .sv-receipt-head h2 { margin: 0; }
+body.server-app .sv-receipt-head p { margin: 2px 0 0; color: #6d6d6d; }
+body.server-app .sv-receipt-head span { background: #eef8f1; color: #17643c; padding: 8px 12px; border-radius: 999px; font-size: 12px; font-weight: 900; }
+body.server-app .sv-receipt-body { padding: 16px; border: 1px solid #e6e6e3; border-radius: 16px; font-family: Arial,sans-serif; color: #111; }
+body.server-app .sv-receipt-body table { width: 100%; border-collapse: collapse; }
+body.server-app .sv-receipt-body th, body.server-app .sv-receipt-body td { padding: 5px 0; text-align: left; border-bottom: 1px dotted #ddd; }
+body.server-app .sv-receipt-body .num { text-align: right; }
+body.server-app .sv-receipt-body .print-title, body.server-app .sv-receipt-body .print-logo, body.server-app .sv-receipt-body .print-subtitle, body.server-app .sv-receipt-body .print-footer { text-align: center; }
+body.server-app .sv-receipt-body .print-title { padding: 9px 0; margin: 8px 0; border-block: 1px solid #ddd; font-weight: 900; }
+body.server-app .sv-receipt-body .print-meta-row, body.server-app .sv-receipt-body .print-summary-row { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; }
+body.server-app .sv-receipt-body .total { border-top: 2px solid #111; font-weight: 900; }
+body.server-app .sv-receipt-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+body.server-app .sv-receipt-actions button { min-height: 44px; border-radius: 12px; }
 body.server-app .hidden { display: none !important; }
 @media (max-width: 480px) {
   body.server-app .sv-floor-head { flex-direction: column; align-items: flex-start; }

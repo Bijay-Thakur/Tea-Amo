@@ -24,6 +24,8 @@ await db.exec(`
   end $$;
 `);
 await db.exec(sql);
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261007133000_table_seated.sql', import.meta.url), 'utf8'));
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261014090000_close_paid_table_atomically.sql', import.meta.url), 'utf8'));
 
 const admin = '11111111-1111-4111-8111-111111111111';
 const serverA = '22222222-2222-4222-8222-222222222222';
@@ -61,6 +63,8 @@ check('stale order version is rejected', conflict);
 
 const served = await asUser(serverB, `select public.save_table_order('t6', 1, false, 2, 'percent', 0, now(), 'T6', 'Dine-in', '[{"menu_item_id":"1","qty":1,"served_qty":1},{"menu_item_id":"2","qty":1,"served_qty":0}]'::jsonb) as result`);
 check('served update lands', served.rows[0].result.version === 2);
+check('served quantity persists', Number((await db.query(`select served_qty from public.order_items where table_id = 't6' and menu_item_id = '1'`)).rows[0].served_qty) === 1);
+await db.query(`update public.cafe_tables set seated = true where id = 't6'`);
 
 const pay = (key) => `select public.complete_payment('${key}', 't6', 2, '[{"menu_item_id":"1","qty":1},{"menu_item_id":"2","qty":1}]'::jsonb, 'Cash', '{}'::jsonb, 0, 0, false, '', '', null, 'Dine-in', 'T6', 2, 'percent', 0, now(), null, null) as result`;
 const keyA = 'pay-key-server-a-001';
@@ -86,6 +90,7 @@ check('exactly one sale', sales.rows.length === 1, `sales ${sales.rows.length}`)
 check('exactly one payment', payments.rows.length === 1, `payments ${payments.rows.length}`);
 check('inventory deducted once', Number(stock.rows[0].stock) === 950, `stock ${stock.rows[0].stock}`);
 check('table released', open.rows.length === 0);
+check('paid table seat released in payment transaction', (await db.query(`select seated from public.cafe_tables where id = 't6'`)).rows[0].seated === false);
 
 const replay = await asUser(serverA, pay(keyA));
 const salesAfter = await db.query('select id from public.sales');

@@ -14,6 +14,8 @@
     "test:floor3d": "node scripts/verify-floor3d.mjs",
     "test:admin-payment": "node scripts/verify-admin-payment.mjs",
     "test:server-payment": "node scripts/verify-server-payment.mjs",
+    "test:payment-response": "node scripts/verify-payment-response.mjs",
+    "test:order-sync": "node scripts/verify-server-order-save.mjs && node scripts/verify-admin-served-sync.mjs",
     "test:payment-qr": "node scripts/verify-payment-qr.mjs",
     "test:settings": "node scripts/verify-settings.mjs"
   },

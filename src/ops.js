@@ -340,7 +340,7 @@ export async function saveOrder(env, token, tableId, body) {
 }
 
 export async function completePayment(env, token, body) {
-  const result = await rpc(env, 'complete_payment', {
+  return rpc(env, 'complete_payment', {
     p_idempotency_key: String(body.idempotency_key || ''),
     p_table_id: body.table_id || null,
     p_expected_version: body.expected_version == null ? 0 : Number(body.expected_version),
@@ -362,17 +362,6 @@ export async function completePayment(env, token, body) {
     p_business_day: body.business_day || null,
     p_time: body.time || null
   }, token);
-  if (body.table_id && result?.table_closed !== false) {
-    await rest(env, `/rest/v1/cafe_tables?id=eq.${encodeURIComponent(body.table_id)}`, {
-      method: 'PATCH',
-      prefer: 'return=minimal',
-      body: { seated: false }
-    }).catch(() => {});
-  }
-  const stocks = await rest(env, '/rest/v1/ingredients?select=key,stock,avg_cost');
-  let order = null;
-  if (body.table_id && !result.table_closed) order = await orderPayload(env, body.table_id, token);
-  return { ...result, stocks: stocks || [], order };
 }
 
 async function tableRow(env, tableId) {

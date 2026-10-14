@@ -11,7 +11,7 @@
 ## Assets and scene
 
 - Blender source: `assets/3d/tea-amo-floor.blend`; reproducible builder: `scripts/build-floor3d.py`.
-- Browser asset: `public/assets/3d/tea-amo-floor.glb`, 2,566,232 bytes (2.45 MiB).
+- Browser asset: `public/assets/3d/tea-amo-floor.glb`, 2,538,372 bytes (2.42 MiB).
 - GLB: 39,032 triangles, 166 mesh primitives, 23 materials, and 2 embedded textures.
 - Scene collections: environment, tables, chairs, decor, floor seating, bar, stairs, aquarium, plants, and interaction helpers.
 - Each `TABLE_*` group carries `entityType`, `tableId`, and the existing lowercase `tableKey`. It has a `STATUS_*` ring and `HITBOX_*` mesh.
@@ -39,6 +39,7 @@
 - `npm run test:floor3d` passed all fifteen table IDs, parent names, status rings, and hitboxes.
 - JavaScript syntax checks and `git diff --check` passed.
 - Desktop preview: `reports/floor3d-desktop.png`; narrow preview: `reports/floor3d-small.png`.
+- Chair facing correction: all 50 table chairs now face their respective tables, and all 5 bar stools face the counter. The Blender builder checks every seat's forward vector before batching; the reviewed top-down render is `reports/floor3d-facing-preview.png`.
 
 ## Remaining live checks
 

@@ -239,8 +239,9 @@ def table(row):
         length_count = 4 if label == "T1" else (3 if label == "T9" else 2)
         for i in range(length_count):
             px = (i-(length_count-1)/2) * min(.53, sx/(length_count+.2))
-            chair(f"CHAIR_{label}_N{i+1:02}", px, sy/2+.29, math.pi, group, label in ("T10", "T5"))
-            chair(f"CHAIR_{label}_S{i+1:02}", px, -sy/2-.29, 0, group, label in ("T10", "T5"))
+            # The back is at local +Y, so the seat faces local -Y.
+            chair(f"CHAIR_{label}_N{i+1:02}", px, sy/2+.29, 0, group, label in ("T10", "T5"))
+            chair(f"CHAIR_{label}_S{i+1:02}", px, -sy/2-.29, math.pi, group, label in ("T10", "T5"))
     ring("STATUS_"+label, group, fw*.97, fd*.97)
     hit = cube("HITBOX_"+label, (0, 0, .66), (fw*.95, fd*.95, 1.28), MAT["hitbox"], COL["INTERACTION_HELPERS"], group)
     hit["tableId"] = label
@@ -297,7 +298,7 @@ cube("BAR_COUNTER", (0, -4.60, 1.13), (4.65, 1.30, .13), MAT["bar_stone"], COL["
 cube("BAR_WARM_TRIM", (0, -5.27, .14), (4.22, .05, .07), MAT["candle"], COL["BAR"])
 cube("BAR_WORKTOP", (0, -4.46, 1.21), (3.7, .45, .035), MAT["wall"], COL["BAR"])
 for i in range(5):
-    chair(f"BAR_STOOL_{i+1:02}", -1.58+i*.78, -5.55, 0, None, True)
+    chair(f"BAR_STOOL_{i+1:02}", -1.58+i*.78, -5.55, math.pi, None, True)
 
 # Low plant railing divides the two upper floor booths from the open floor.
 cube("PLANT_RAILING", (-5.45, .90, .47), (4.88, .32, .94), MAT["wood_dark"], COL["PLANTS"], bevel=.04)
@@ -316,6 +317,23 @@ for row in TABLES:
 
 # Keep semantic table parents and hitboxes, but batch static furniture by
 # material within each table. This cuts WebGL draw calls without changing IDs.
+# Validate each seat before static meshes are joined for export. The vector
+# from the backrest to the seat must point toward its table or the bar.
+bpy.context.view_layer.update()
+checked_seats = 0
+for seat_root in bpy.context.scene.objects:
+    if seat_root.type != "EMPTY" or not (seat_root.name.startswith("CHAIR_") or seat_root.name.startswith("BAR_STOOL_")):
+        continue
+    seat = next(child for child in seat_root.children if child.name.endswith("_SEAT"))
+    back = next(child for child in seat_root.children if child.name.endswith("_BACK"))
+    focus = (seat_root.parent.matrix_world.translation if seat_root.parent else Vector((0, -4.67, 0)))
+    forward = seat.matrix_world.translation - back.matrix_world.translation
+    to_focus = focus - seat.matrix_world.translation
+    forward.z = to_focus.z = 0
+    assert forward.dot(to_focus) > 0, f"{seat_root.name} faces away from its table"
+    checked_seats += 1
+assert checked_seats == 55, f"Expected 55 chairs and bar stools, found {checked_seats}"
+
 for obj in list(bpy.context.scene.objects):
     if obj.type != "MESH":
         continue

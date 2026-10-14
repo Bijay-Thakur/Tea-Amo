@@ -8,7 +8,7 @@ export const TABLE_STATUS = Object.freeze({
   attention: { label: 'Attention', color: '#ef716b' }
 });
 
-const MODEL_URL = '/assets/3d/tea-amo-floor.glb';
+const MODEL_URL = '/assets/3d/tea-amo-floor.glb?v=20261014-seating';
 const MODEL_IDS = ['t1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10', 't11', 'a', 'b', 'c', 'd'];
 
 export class TeaAmo3DFloor {

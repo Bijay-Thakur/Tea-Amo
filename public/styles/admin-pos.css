@@ -1,4 +1,11 @@
 /* Scoped POS workspace. Does not restyle other Administration sections. */
+.payment-progress { position: fixed; inset: 0; z-index: 999; display: grid; place-items: center; padding: 18px; background: rgba(17,17,17,.42); }
+.payment-progress.hidden { display: none; }
+#receiptModal.show { z-index: 150; }
+.payment-progress-card { width: min(320px,100%); display: grid; justify-items: center; gap: 10px; padding: 30px; border-radius: 22px; background: #fff; box-shadow: 0 24px 70px rgba(0,0,0,.2); text-align: center; }
+.payment-progress-card span:last-child { color: #696969; font-size: 13px; }
+.payment-progress-spinner { width: 28px; height: 28px; border: 3px solid #ddd; border-right-color: #1b1b1b; border-radius: 50%; animation: payment-spin .7s linear infinite; }
+@keyframes payment-spin { to { transform: rotate(360deg); } }
 
 body.clay .top-stack .page-context {
   color: #c9c9c6;

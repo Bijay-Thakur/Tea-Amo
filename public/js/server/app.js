@@ -1,4 +1,4 @@
-let cfg = null, activeTable = null, version = 0, dirty = false, order = blankOrder(), accessToken = '', saving = false, paying = false, attention = false, payMethod = 'Cash', tableFilter = 'all', view = 'tables', saveTimer = 0, saveQueued = false, toastTimer = 0;
+let cfg = null, activeTable = null, version = 0, dirty = false, order = blankOrder(), accessToken = '', saving = false, savePromise = null, editRevision = 0, servedEdits = new Map(), otherEdits = false, paying = false, attention = false, payMethod = 'Cash', tableFilter = 'all', view = 'tables', saveTimer = 0, toastTimer = 0;
 const $ = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 
@@ -141,8 +141,8 @@ async function loadWorkspace() {
     const latest = cfg.orders?.[activeTable.id];
     const fresh = cfg.tables.find((table) => String(table.id) === String(activeTable.id));
     if (fresh) activeTable = fresh;
-    if (latest && !dirty && Number(latest.version) !== version) await refreshOrder();
-    else if (!dirty && !latest && version) await refreshOrder();
+    if (latest && !dirty && !saving && !paying && Number(latest.version) !== version) await refreshOrder();
+    else if (!dirty && !saving && !paying && !latest && version) await refreshOrder();
   }
   updateBar();
 }
@@ -197,8 +197,14 @@ function updateBar() {
 }
 
 window.openTable = async (id, mode) => {
+  const sameTable = activeTable && String(activeTable.id) === String(id);
+  if (sameTable && (dirty || saving)) { closeSheet(); showView(mode === 'pay' ? 'pay' : 'order'); return; }
+  if (dirty && activeTable && !sameTable && !confirm('This order has unsaved changes. Open another table?')) return;
   activeTable = cfg.tables.find((table) => String(table.id) === String(id));
   if (!activeTable) return;
+  dirty = false;
+  servedEdits.clear();
+  otherEdits = false;
   $('cashReceived').value = '';
   closeSheet();
   $('tableTitle').textContent = activeTable.name;
@@ -217,8 +223,10 @@ async function leaveOrder() {
 }
 
 async function refreshOrder() {
-  if (!activeTable) return;
-  const data = await api('/api/server/orders/' + encodeURIComponent(activeTable.id));
+  if (!activeTable || dirty || saving || paying) return false;
+  const tableId = activeTable.id, revision = editRevision;
+  const data = await api('/api/server/orders/' + encodeURIComponent(tableId));
+  if (!activeTable || String(activeTable.id) !== String(tableId) || dirty || saving || paying || editRevision !== revision) return false;
   version = Number(data.version || 0);
   order = data.order || blankOrder();
   if (!Array.isArray(order.cart)) order.cart = [];
@@ -234,6 +242,7 @@ async function refreshOrder() {
   status('Synced', 'good');
   renderCart();
   renderPay();
+  return true;
 }
 
 window.addItem = (id) => {
@@ -277,9 +286,10 @@ function setServed(id, next) {
   const line = order.cart.find((row) => String(row.id) === String(id));
   if (!line) return;
   line.served = Math.max(0, Math.min(Number(line.qty || 0), Number(next)));
+  servedEdits.set(String(id), line.served);
   closeSheet();
   renderCart();
-  saveOrder();
+  scheduleSave(0, true);
 }
 
 function calc() { return orderMoney(order); }
@@ -293,11 +303,13 @@ function renderTotals() {
   if ($('payMeta')) $('payMeta').textContent = `${count} item${count === 1 ? '' : 's'} · ${Math.max(1, Number(order.guestCount || 1))} guest${Number(order.guestCount || 1) === 1 ? '' : 's'}`;
   updateCashPreview();
 }
-function scheduleSave() {
+function scheduleSave(delay = 650, servedOnly = false) {
+  editRevision += 1;
+  if (!servedOnly) otherEdits = true;
   dirty = true;
   status('Saving…');
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => saveOrder(), 650);
+  saveTimer = setTimeout(() => saveOrder(), delay);
 }
 function applyForm() {
   order.guestCount = Math.max(1, Number($('guestCount').value || 1));
@@ -310,53 +322,81 @@ function applyForm() {
 
 async function saveOrder() {
   if (!activeTable) return false;
-  const hasItems = order.cart.some((line) => Number(line.qty) > 0);
-  if (!hasItems && !version) {
-    dirty = false;
-    status('Synced', 'good');
-    return true;
-  }
-  if (saving) { saveQueued = true; return false; }
-  saving = true;
-  $('saveOrder').disabled = true;
-  order.guestCount = Math.max(1, Number($('guestCount').value || 1));
-  order.discountType = $('discountType').value;
-  order.discountValue = Math.max(0, Number($('discountValue').value || 0));
-  status('Saving…');
-  try {
-    const data = await api('/api/ops/orders/' + encodeURIComponent(activeTable.id), {
-      method: 'PUT',
-      body: JSON.stringify({
-        expected_version: version,
-        attention: !!attention,
-        guest_count: order.guestCount,
-        discount_type: order.discountType,
-        discount_value: order.discountValue,
-        opened_at: order.openedAt,
-        order_ref: activeTable.name,
-        items: order.cart.map((line) => ({ menu_item_id: String(line.id), qty: Number(line.qty), served_qty: Number(line.served || 0) }))
-      })
-    });
-    version = Number(data.version || 0);
-    dirty = false;
-    status(data.deleted ? 'Synced' : 'Synced', 'good');
-    if (!cfg.orders) cfg.orders = {};
-    if (data.deleted) delete cfg.orders[activeTable.id];
-    else cfg.orders[activeTable.id] = { version, attention: !!attention, order };
-    if (activeTable) activeTable.attention = !!attention && !data.deleted;
-    return true;
-  } catch (error) {
-    saveQueued = false;
-    if (error.status === 409) {
-      status('This order changed on another device. Updating…', 'warn');
-      await refreshOrder();
-    } else status(error.message, 'bad');
-    return false;
-  } finally {
-    saving = false;
-    $('saveOrder').disabled = false;
-    if (saveQueued) { saveQueued = false; return saveOrder(); }
-  }
+  clearTimeout(saveTimer);
+  if (savePromise) return savePromise;
+  if (!dirty && version > 0) return true;
+  savePromise = (async () => {
+    saving = true;
+    $('saveOrder').disabled = true;
+    let conflicts = 0;
+    try {
+      do {
+        const tableId = activeTable.id, revision = editRevision;
+        order.guestCount = Math.max(1, Number($('guestCount').value || 1));
+        order.discountType = $('discountType').value;
+        order.discountValue = Math.max(0, Number($('discountValue').value || 0));
+        if (!order.cart.some((line) => Number(line.qty) > 0) && !version) {
+          dirty = false;
+          servedEdits.clear();
+          otherEdits = false;
+          status('Synced', 'good');
+          return true;
+        }
+        status('Saving…');
+        let data;
+        try {
+          data = await api('/api/ops/orders/' + encodeURIComponent(tableId), {
+            method: 'PUT',
+            body: JSON.stringify({
+              expected_version: version,
+              attention: !!attention,
+              guest_count: order.guestCount,
+              discount_type: order.discountType,
+              discount_value: order.discountValue,
+              opened_at: order.openedAt,
+              order_ref: activeTable.name,
+              items: order.cart.map((line) => ({ menu_item_id: String(line.id), qty: Number(line.qty), served_qty: Number(line.served || 0) }))
+            })
+          });
+        } catch (error) {
+          if (error.status !== 409 || otherEdits || !servedEdits.size || conflicts++ >= 2) throw error;
+          const latest = await api('/api/server/orders/' + encodeURIComponent(tableId));
+          if (!activeTable || String(activeTable.id) !== String(tableId) || otherEdits || editRevision !== revision || !latest.order) throw error;
+          const matched = (latest.order.cart || []).filter((line) => servedEdits.has(String(line.id)));
+          if (!matched.length) throw error;
+          order = latest.order;
+          for (const line of matched) line.served = Math.max(0, Math.min(Number(line.qty || 0), servedEdits.get(String(line.id))));
+          version = Number(latest.version || 0);
+          attention = !!latest.attention;
+          $('guestCount').value = order.guestCount;
+          $('discountType').value = order.discountType;
+          $('discountValue').value = order.discountValue;
+          renderCart();
+          status('Retrying served update…');
+          continue;
+        }
+        if (!activeTable || String(activeTable.id) !== String(tableId)) return false;
+        version = Number(data.version || 0);
+        dirty = editRevision !== revision;
+        if (!cfg.orders) cfg.orders = {};
+        if (data.deleted) delete cfg.orders[tableId];
+        else cfg.orders[tableId] = { version, attention: !!attention, order };
+        activeTable.attention = !!attention && !data.deleted;
+      } while (dirty);
+      servedEdits.clear();
+      otherEdits = false;
+      status('Synced', 'good');
+      return true;
+    } catch (error) {
+      status(error.status === 409 ? 'Order changed on another device. Review and save again.' : error.message, 'bad');
+      return false;
+    } finally {
+      saving = false;
+      savePromise = null;
+      $('saveOrder').disabled = false;
+    }
+  })();
+  return savePromise;
 }
 
 function updatePaymentAvailability() {
@@ -382,6 +422,18 @@ function printStaffBill() {
   document.body.classList.add('printing-bill');
   window.print();
   setTimeout(() => document.body.classList.remove('printing-bill'), 400);
+}
+function paidReceiptHtml(bill) {
+  const lines = (bill.items || []).map((line) => `<tr><td>${esc(line.name || 'Item')}<div>${Number(line.qty || 0)} × ${money(line.price)}</div></td><td class="num">${money(Number(line.price || 0) * Number(line.qty || 0))}</td></tr>`).join('');
+  return `<div class="print-logo">${esc(cfg.business?.name || 'TEA AMO')}</div><div class="print-subtitle">${esc(cfg.business?.branch || '')}</div><div class="print-title">PAID RECEIPT</div><div class="print-meta"><div class="print-meta-row"><span>Bill</span><b>${esc(bill.id)}</b></div><div class="print-meta-row"><span>Table</span><b>${esc(bill.ref || activeTable?.name || '')}</b></div><div class="print-meta-row"><span>Payment</span><b>${esc(bill.payment || payMethod)}</b></div></div><table class="print-table"><thead><tr><th>Item</th><th class="num">Amount</th></tr></thead><tbody>${lines}</tbody></table><div class="print-summary"><div class="print-summary-row"><span>Subtotal</span><b>${money(bill.subtotal)}</b></div><div class="print-summary-row"><span>Discount</span><b>- ${money(bill.discount)}</b></div><div class="print-summary-row"><span>Tax</span><b>${money(bill.tax)}</b></div><div class="print-summary-row total"><span>PAID</span><b>${money(bill.total)}</b></div></div><div class="print-footer">Thank you for visiting.</div>`;
+}
+function showPaidReceipt(bill) {
+  $('paidReceiptBody').innerHTML = paidReceiptHtml(bill);
+  $('paidReceipt').classList.remove('hidden');
+}
+function closePaidReceipt() {
+  $('paidReceipt').classList.add('hidden');
+  resetPayButton();
 }
 function resetPayButton() {
   const button = $('completePay');
@@ -441,12 +493,14 @@ async function takePayment() {
   paying = true;
   const button = $('completePay');
   button.disabled = true;
-  button.textContent = 'Processing Payment…';
+  button.setAttribute('aria-busy', 'true');
+  button.innerHTML = '<span class="sv-spinner" aria-hidden="true"></span> Saving bill…';
   const key = crypto.randomUUID();
   try {
+    await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
     const saved = await saveOrder();
     if (!saved) { resetPayButton(); return; }
-    status('Confirming payment…');
+    status('Saving payment and bill…');
     const data = await api('/api/ops/payments', {
       method: 'POST',
       body: JSON.stringify({
@@ -463,27 +517,23 @@ async function takePayment() {
     if (!data.bill?.id) throw new Error('Payment was not confirmed.');
     status('Payment completed', 'good');
     markPaid();
-    toast('Payment complete');
+    showPaidReceipt(data.bill);
     dirty = false;
     if (cfg.orders) delete cfg.orders[activeTable.id];
-    const table = activeTable;
-    if (table) { table.seated = false; table.attention = false; }
-    await loadWorkspace();
-    setTimeout(() => {
-      if (activeTable !== table) return;
-      activeTable = null;
-      order = blankOrder();
-      showView('tables');
-      resetPayButton();
-      if ($('cashReceived')) $('cashReceived').value = '';
-    }, 700);
+    activeTable = null;
+    order = blankOrder();
+    version = 0;
+    showView('tables');
+    if ($('cashReceived')) $('cashReceived').value = '';
+    loadWorkspace().catch(() => setNet(false));
   } catch (error) {
     status(error.status === 409 ? 'This order changed on another device. Updating…' : error.message, 'bad');
     toast(error.status === 409 ? 'This order changed on another device. Updating…' : 'Payment failed. ' + error.message);
     resetPayButton();
-    if (error.status === 409) await refreshOrder().catch(() => {});
+    if (error.status === 409) setTimeout(() => refreshOrder().catch(() => {}), 0);
   } finally {
     paying = false;
+    button.removeAttribute('aria-busy');
     updatePaymentAvailability();
   }
 }
@@ -579,7 +629,11 @@ async function runSheetAction(id, action) {
     await postTable(id, 'attention', { attention: on });
     if (activeTable && String(activeTable.id) === String(id)) {
       attention = on;
-      if (order.cart.some((line) => Number(line.qty) > 0)) await saveOrder();
+      if (order.cart.some((line) => Number(line.qty) > 0)) {
+        dirty = true;
+        editRevision += 1;
+        await saveOrder();
+      }
     }
     closeSheet();
     toast(on ? 'Table marked for attention' : 'Attention cleared');
@@ -683,6 +737,13 @@ $('payMethods').onclick = (event) => {
 $('saveOrder').onclick = () => saveOrder().then((ok) => { if (ok) toast('Order saved'); });
 $('printBill').onclick = printStaffBill;
 $('completePay').onclick = takePayment;
+$('paidReceiptClose').onclick = closePaidReceipt;
+$('paidReceiptPrint').onclick = () => {
+  $('staffBill').innerHTML = $('paidReceiptBody').innerHTML;
+  document.body.classList.add('printing-bill');
+  window.print();
+  setTimeout(() => document.body.classList.remove('printing-bill'), 400);
+};
 $('reloadConfig').onclick = () => { closeMenu(); loadWorkspace().then(() => toast('Refreshed')).catch((error) => toast(error.message)); };
 $('profileRefresh').onclick = () => loadWorkspace().then(() => toast('Refreshed')).catch((error) => toast(error.message));
 async function logout() {
@@ -765,7 +826,7 @@ async function boot() {
   function startFallbackPoll() {
     if (realtime || window.__teaServerPoll) return;
     window.__teaServerPoll = setInterval(() => {
-      if (document.visibilityState !== 'visible' || dirty) return;
+      if (document.visibilityState !== 'visible' || dirty || saving || paying) return;
       loadWorkspace().catch(() => setNet(false));
     }, 4000);
   }
@@ -775,9 +836,9 @@ async function boot() {
       const client = window.supabase.createClient(config.url, config.anonKey, { auth: { persistSession: false } });
       await client.auth.setSession({ access_token: accessToken, refresh_token: session.refresh_token });
       client.channel('tea-amo-server')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'live_orders' }, () => { if (!dirty) loadWorkspace().catch(() => setNet(false)); })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => { if (!dirty && activeTable) refreshOrder().catch(() => {}); })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'cafe_tables' }, () => { if (!dirty) loadWorkspace().catch(() => {}); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'live_orders' }, () => { if (!dirty && !saving && !paying) loadWorkspace().catch(() => setNet(false)); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => { if (!dirty && !saving && !paying && activeTable) refreshOrder().catch(() => {}); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'cafe_tables' }, () => { if (!dirty && !saving && !paying) loadWorkspace().catch(() => {}); })
         .subscribe((state) => {
           if (state === 'SUBSCRIBED') { realtime = true; setNet(true); }
           if (state === 'CHANNEL_ERROR' || state === 'TIMED_OUT') { setNet(false); startFallbackPoll(); }

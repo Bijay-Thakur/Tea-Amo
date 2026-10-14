@@ -1,4 +1,4 @@
-import { TeaAmo3DFloor } from './floor3d.js';
+import { TeaAmo3DFloor } from './floor3d.js?v=20261014-seating';
 
 if (window.ENABLE_3D_FLOOR !== false) {
   const admin = document.getElementById('tableFloor');

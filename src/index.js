@@ -150,6 +150,10 @@ async function handleOps(request, env, path) {
   if (auth.error) return json({ error: auth.error }, auth.status);
   const { session } = auth;
   try {
+    if (path === '/api/ops/stocks' && request.method === 'GET') {
+      if (session.profile.role !== 'admin') return json({ error: 'Forbidden' }, 403);
+      return json({ stocks: await rest(env, '/rest/v1/ingredients?select=key,stock,avg_cost') || [] });
+    }
     const orderMatch = path.match(/^\/api\/ops\/orders\/([^/]+)$/);
     if (orderMatch && request.method === 'GET') return json(await orderPayload(env, decodeURIComponent(orderMatch[1]), session.access));
     if (orderMatch && request.method === 'PUT') {

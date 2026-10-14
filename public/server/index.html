@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles/staff.css">
 <link rel="stylesheet" href="/styles/clay-staff.css">
-<link rel="stylesheet" href="/styles/server.css?v=20261014-payment">
+<link rel="stylesheet" href="/styles/server.css?v=20261014-payment-flow">
 <link rel="stylesheet" href="/styles/floor3d.css?v=20261014-3d">
 <script type="importmap">{"imports":{"three":"/vendor/three/three.module.js","three/addons/":"/vendor/three/addons/"}}</script>
 </head>
@@ -167,8 +167,15 @@
   </form>
 </div>
 <div id="staffBill" class="staff-bill"></div>
+<div id="paidReceipt" class="sv-receipt-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="paidReceiptTitle">
+  <div class="sv-receipt-card">
+    <div class="sv-receipt-head"><div><h2 id="paidReceiptTitle">Payment complete</h2><p>Receipt ready</p></div><span>PAID</span></div>
+    <div id="paidReceiptBody" class="sv-receipt-body"></div>
+    <div class="sv-receipt-actions"><button id="paidReceiptPrint" type="button">Print receipt</button><button id="paidReceiptClose" class="sv-ghost" type="button">Done</button></div>
+  </div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>
-<script src="/js/server/app.js?v=20261014-3d"></script>
-<script type="module" src="/js/floor3d/bootstrap.js?v=20261014-3d"></script>
+<script src="/js/server/app.js?v=20261014-payment-flow"></script>
+<script type="module" src="/js/floor3d/bootstrap.js?v=20261014-seating"></script>
 </body>
 </html>

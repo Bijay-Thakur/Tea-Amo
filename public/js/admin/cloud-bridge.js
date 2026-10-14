@@ -5,6 +5,8 @@
   let refreshTimer = null;
   let pushChain = Promise.resolve();
   const paymentKeys = new Map();
+  const pendingOrders = new Set();
+  const orderEdits = new Map();
 
   async function authHeaders() {
     return { 'Content-Type': 'application/json', ...(accessToken ? { Authorization: 'Bearer ' + accessToken } : {}) };
@@ -64,7 +66,7 @@
           changed.push(table.id);
         }
       }
-      if (lanPushTimers[table.id]) continue;
+      if (lanPushTimers[table.id] || pendingOrders.has(String(table.id))) continue;
       const remote = orders[table.id];
       const local = state.tableOrders[table.id];
       if (!remote || !remote.order) {
@@ -174,14 +176,27 @@
   pushLanOrder = async function (tableId) {
     if (!tableId || tableId === 'counter') return;
     pushChain = pushChain.then(async () => {
+      const key = String(tableId), revision = orderEdits.get(key) || 0;
       try {
-        const result = await cloudFetch('/api/ops/orders/' + encodeURIComponent(tableId), { method: 'PUT', body: JSON.stringify(orderBody(tableId)) });
+        let result;
+        try {
+          result = await cloudFetch('/api/ops/orders/' + encodeURIComponent(tableId), { method: 'PUT', body: JSON.stringify(orderBody(tableId)) });
+        } catch (error) {
+          if (error.status !== 409) throw error;
+          const latest = await cloudFetch('/api/ops/orders/' + encodeURIComponent(tableId));
+          if (state.tableOrders[tableId]) state.tableOrders[tableId]._lan_version = Number(latest.version || 0);
+          result = await cloudFetch('/api/ops/orders/' + encodeURIComponent(tableId), { method: 'PUT', body: JSON.stringify(orderBody(tableId)) });
+        }
         if (state.tableOrders[tableId] && result.version) state.tableOrders[tableId]._lan_version = result.version;
         if (result.deleted) delete state.tableOrders[tableId];
         lanOnline = true;
       } catch (error) {
         lanOnline = false;
-        if (error.status === 409) await refreshOrders();
+        console.error('Order sync failed', error);
+        if (!lanPushTimers[tableId]) lanPushTimers[tableId] = setTimeout(() => { delete lanPushTimers[tableId]; pushLanOrder(tableId); }, 2000);
+      } finally {
+        if ((orderEdits.get(key) || 0) === revision && !lanPushTimers[tableId]) pendingOrders.delete(key);
+        else if (!lanPushTimers[tableId]) queueLanOrderPush(tableId);
       }
       updateLanUI();
     }).catch(() => {});
@@ -196,6 +211,9 @@
   };
   queueLanOrderPush = function (tableId) {
     if (!tableId || tableId === 'counter' || lanApplyingRemote) return;
+    const key = String(tableId);
+    pendingOrders.add(key);
+    orderEdits.set(key, (orderEdits.get(key) || 0) + 1);
     clearTimeout(lanPushTimers[tableId]);
     lanPushTimers[tableId] = setTimeout(() => { delete lanPushTimers[tableId]; pushLanOrder(tableId); }, 90);
   };
@@ -216,10 +234,13 @@
   async function flushTableOrder(tableId) {
     clearTimeout(lanPushTimers[tableId]);
     delete lanPushTimers[tableId];
+    await pushChain;
+    const key = String(tableId), revision = orderEdits.get(key) || 0;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
         const result = await cloudFetch('/api/ops/orders/' + encodeURIComponent(tableId), { method: 'PUT', body: JSON.stringify(orderBody(tableId)) });
         if (state.tableOrders[tableId] && result.version != null) state.tableOrders[tableId]._lan_version = Number(result.version || 0);
+        if ((orderEdits.get(key) || 0) === revision && !lanPushTimers[tableId]) pendingOrders.delete(key);
         return result;
       } catch (error) {
         if (error.status !== 409 || attempt === 1) throw error;
@@ -234,9 +255,12 @@
   completeSelection = async function (selection, paymentInfo, opts = {}) {
     if (paymentKeys.get('busy')) throw new Error('A payment is already being confirmed.');
     paymentKeys.set('busy', true);
+    $('paymentProgress')?.classList.remove('hidden');
     const table = activeTableId && activeTableId !== 'counter' ? tableById(activeTableId) : null;
     const key = crypto.randomUUID();
+    let confirmedBill = null;
     try {
+      await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
       if (table) await flushTableOrder(table.id);
       const order = typeof currentOrderMeta === 'function' ? currentOrderMeta() : null;
       const result = await cloudFetch('/api/ops/payments', {
@@ -265,14 +289,13 @@
         })
       });
       const bill = result.bill;
+      if (!bill?.id) throw new Error('Payment was not confirmed.');
+      confirmedBill = bill;
+      lastPaidBill = bill;
+      $('paymentProgress')?.classList.add('hidden');
+      showReceipt(bill);
+      await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
       if (bill && !state.bills.some((item) => item.id === bill.id)) state.bills.unshift(bill);
-      for (const row of result.stocks || []) {
-        const ingredientRow = ingredient(row.key);
-        if (ingredientRow) {
-          ingredientRow.stock = Number(row.stock);
-          ingredientRow.avg_cost = Number(row.avg_cost);
-        }
-      }
       const cart = table ? (state.tableOrders[table.id]?.cart || []) : state.cart;
       for (const picked of selection) {
         const line = cart.find((item) => String(item.id) === String(picked.id));
@@ -307,16 +330,30 @@
         }
       }
       audit(opts.nonChargeable ? 'non_chargeable_order' : 'sale_completed', `${bill.id} ${bill.payment} ${bill.total}`);
-      await persistNow('cloud_payment');
-      lastPaidBill = bill;
-      showReceipt(bill);
+      cloudFetch('/api/ops/stocks').then(async ({ stocks }) => {
+        for (const row of stocks || []) {
+          const ingredientRow = ingredient(row.key);
+          if (ingredientRow) {
+            ingredientRow.stock = Number(row.stock);
+            ingredientRow.avg_cost = Number(row.avg_cost);
+          }
+        }
+        await persistNow('cloud_payment');
+      }).catch((error) => console.error('Payment backup sync failed', error));
+      refreshOrders().catch(() => {});
       setActionStatus(`${opts.nonChargeable ? 'Non-chargeable order' : 'Payment'} completed: ${bill.id}${opts.nonChargeable ? '' : ' · ' + rs(bill.total)}`, 'good');
       if (activeSection === 'dashboard') renderDashboard();
       return bill;
     } catch (error) {
+      if (confirmedBill) {
+        console.error('Payment succeeded; local display refresh failed', error);
+        refreshOrders().catch(() => {});
+        return confirmedBill;
+      }
       if (error.status === 409) await refreshOrders().catch(() => {});
       throw error;
     } finally {
+      $('paymentProgress')?.classList.add('hidden');
       paymentKeys.delete('busy');
     }
   };
