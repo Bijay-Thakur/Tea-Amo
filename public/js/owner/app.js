@@ -1225,7 +1225,21 @@ function renderSettings(){
   $('branchName').value=state.business.branch;
   $('currency').value=state.business.currency;
   $('taxRate').value=state.business.taxRate;
+  updateBusinessSaveState();
   renderQrSettings()
+}
+function updateBusinessSaveState(){
+  const button=$('saveBusiness');if(!button)return;
+  button.disabled=$('businessName').value.trim()===(state.business.name||'')&&$('branchName').value.trim()===(state.business.branch||'')&&$('currency').value.trim()===(state.business.currency||'')&&Number($('taxRate').value||0)===Number(state.business.taxRate||0)
+}
+function closeSettingsModal(modal){
+  if(!modal)return;
+  modal.classList.remove('show');
+  if(modal.id==='operationalResetModal')$('fullResetPassword').value=$('fullResetConfirm').value=''
+}
+function openSettingsModal(id,focusId){
+  const modal=$(id);if(!modal)return;
+  modal.classList.add('show');$(focusId)?.focus()
 }
 
 
@@ -1512,8 +1526,9 @@ async function init(){
   $('addCustomer').onclick=()=>{const name=$('custName').value.trim();if(!name)return;state.customers.push({id:Date.now(),name,phone:$('custPhone').value.trim(),email:$('custEmail').value.trim(),visits:0,spend:0});rebuildIndex();$('custName').value=$('custPhone').value=$('custEmail').value='';saveSoon();renderCustomers()};
   $('exportSales').onclick=()=>exportRows('tea-amo-sales.csv',['bill','date','type','payment','payment_breakdown','payment_corrections','subtotal','discount','tax','total','cogs'],state.bills.map(b=>[b.id,b.time,b.type,b.payment,b.payments?Object.entries(b.payments).filter(([,v])=>Number(v)>0).map(([k,v])=>`${k}:${v}`).join(' | '):'',Array.isArray(b.payment_corrections)?b.payment_corrections.length:0,b.subtotal,b.discount,b.tax,b.total,b.cogs]));$('exportExpenses').onclick=()=>exportRows('tea-amo-expenses.csv',['date','category','vendor','payment','amount','note'],state.expenses.map(e=>[e.date,e.category,e.vendor,e.payment,e.amount,e.note]));$('exportWaste').onclick=()=>exportRows('tea-amo-waste.csv',['date','ingredient','qty','reason','cost'],state.waste.map(w=>[w.time,ingredient(w.ingredient_key)?.name||'',w.qty,w.reason,w.cost]));
   if($('exportItemSalesExcel'))$('exportItemSalesExcel').onclick=exportItemSalesExcel;if($('exportItemSalesCsv'))$('exportItemSalesCsv').onclick=exportItemSalesCsv;
-  $('saveBusiness').onclick=()=>{state.business={...state.business,name:$('businessName').value.trim()||'TEA AMO',branch:$('branchName').value.trim()||'Main Branch',currency:$('currency').value.trim()||'Rs',taxRate:Number($('taxRate').value||0)};saveSoon();renderSettings();updateTop()};
-  $('changePass').onclick=async()=>{if(!await verifyOwnerPassword($('oldPass').value))return alert('Incorrect current password.');if($('newPass').value.length<8)return alert('Use at least 8 characters.');await setOwnerPassword($('newPass').value);$('oldPass').value=$('newPass').value='';if(!await persistNow('password_changed'))return alert('Password changed in memory but could not be saved. Try again before closing the app.');audit('owner_password_changed','PBKDF2 credential updated');alert('Password changed securely.')};
+  ['businessName','branchName','currency','taxRate'].forEach(id=>$(id).addEventListener('input',updateBusinessSaveState));
+  $('saveBusiness').onclick=saveBusinessNow;
+  $('changePass').onclick=async()=>{if($('newPass').value!==$('confirmPass').value)return alert('New passwords do not match.');if(!await verifyOwnerPassword($('oldPass').value))return alert('Incorrect current password.');if($('newPass').value.length<8)return alert('Use at least 8 characters.');await setOwnerPassword($('newPass').value);$('oldPass').value=$('newPass').value=$('confirmPass').value='';if(!await persistNow('password_changed'))return alert('Password changed in memory but could not be saved. Try again before closing the app.');audit('owner_password_changed','PBKDF2 credential updated');alert('Password changed securely.')};
   $('lanSyncNow').onclick=async()=>{const ok=await pushLanConfig();await pullLanOrders(true);alert(ok?'Staff phone access synced.':'LAN server is not connected. Launch RUN_TEA_AMO_SERVER.bat first.')};
   $('lanCopyStaffUrl').onclick=async()=>{
     try{
@@ -1537,6 +1552,11 @@ async function init(){
   $('qrRemoveMethodKhalti').onclick=()=>removePaymentMethod('Khalti');
   $('qrRemoveMethodFonepay').onclick=()=>removePaymentMethod('Fonepay');
   $('addPaymentMethodBtn').onclick=addPaymentMethodFromSettings;
+  $('openAddPaymentMethod').onclick=()=>openSettingsModal('addPaymentMethodModal','newPaymentMethodName');
+  $('openOperationalReset').onclick=()=>openSettingsModal('operationalResetModal','fullResetPassword');
+  document.querySelectorAll('#settings [data-close-settings-modal]').forEach(button=>button.addEventListener('click',()=>closeSettingsModal(button.closest('.settings-modal'))));
+  document.querySelectorAll('#settings .settings-modal').forEach(modal=>modal.addEventListener('click',event=>{if(event.target===modal)closeSettingsModal(modal)}));
+  document.addEventListener('keydown',event=>{if(event.key==='Escape')document.querySelectorAll('#settings .settings-modal.show').forEach(closeSettingsModal)});
   $('fullSystemReset').onclick=completeOperationalReset;
 
   $('lanOpenStaffTest').onclick=async()=>{
@@ -1751,7 +1771,7 @@ function addPaymentMethodFromSettings(){
   const name=$('newPaymentMethodName').value.trim(),kind=$('newPaymentMethodKind').value;
   if(!name)return alert('Enter the payment method name.');
   if(paymentMethods().some(x=>x.name.toLowerCase()===name.toLowerCase()))return alert('That payment method already exists.');
-  state.business.payment_methods.push({name,kind});$('newPaymentMethodName').value='';saveSoon();renderPaymentMethodSettings();setActionStatus(`${name} added as a payment method.`,'good')
+  state.business.payment_methods.push({name,kind});$('newPaymentMethodName').value='';saveSoon();renderPaymentMethodSettings();closeSettingsModal($('addPaymentMethodModal'));setActionStatus(`${name} added as a payment method.`,'good')
 }
 async function removePaymentMethod(name){
   if(name==='Cash')return alert('Cash is kept as a core payment method because cash/change calculations depend on it.');
@@ -1818,6 +1838,7 @@ async function completeOperationalReset(){
   await Promise.allSettled(state.tables.map(t=>deleteLanOrder(t.id)));
   if(!await persistNow('complete_operational_reset'))return alert('Reset changes could not be saved. Restore from the automatic PRE_RESET backup before continuing.');
   $('fullResetPassword').value=$('fullResetConfirm').value='';
+  closeSettingsModal($('operationalResetModal'));
   renderActive();updateTop();setActionStatus('System reset complete. TEA AMO is ready for a fresh operational start.','good');alert('Complete operational reset finished. Your setup/menu/payment configuration was preserved.')
 }
 // ===== END OPERATIONS PATCH =====

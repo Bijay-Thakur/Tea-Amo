@@ -1,90 +1,39 @@
-<section id="settings"><div class="payment-qr-shortcut"><div><b>Payment QR codes</b><span>Upload or replace eSewa and Fonepay QR images.</span></div><button class="btn alt" type="button" onclick="document.getElementById('quickQrMethods').scrollIntoView({behavior:'smooth',block:'start'})">Manage QR Codes</button></div><div class="grid g2"><div class="card"><h2>Business Settings</h2><div class="toolbar"><input id="businessName"><input id="branchName"><input id="currency"><input id="taxRate" type="number" min="0" step=".01" placeholder="Tax %"><button class="btn" id="saveBusiness" onclick="saveBusinessNow()">Save</button></div><h3>Owner Password</h3><div class="toolbar"><input id="oldPass" type="password" placeholder="Current password"><input id="newPass" type="password" placeholder="New password"><button class="btn alt" id="changePass">Change</button></div></div><div class="card"><h2>Backup / Recovery</h2><div class="notice"><b>Persistent data model:</b> menu changes are preserved exactly as saved and are not rebuilt from the original seed. Clearing the dashboard never deletes transaction history or operational records.</div><div class="toolbar"><button class="btn" id="backupBtn">Download Full Backup</button><label class="btn alt">Restore Backup<input id="restoreFile" type="file" accept=".json" hidden></label></div><hr style="border:0;border-top:1px solid var(--line);margin:14px 0"><h3>Clear Dashboard Only</h3><div class="notice">This only resets the numbers shown on the Dashboard to zero. <b>Nothing is deleted.</b> Sales, bills, reports, inventory, recipes, staff, attendance, vendors, expenses, customers, purchases, wastage, Z-reports and movement history all remain intact.</div><div class="toolbar"><input id="resetPassword" type="password" placeholder="Owner password"><button class="btn danger" id="resetAll">Clear Dashboard</button><button class="btn alt" id="restoreDashboard">Restore Full Dashboard View</button></div>
-
-<hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
-<h3>Reset Behavior</h3>
-<div class="notice">
-  <b>Dashboard-only reset is active.</b> Resetting TEA AMO now clears only the Dashboard display baseline. Staff, attendance, orders, sales history, inventory, vendors, expenses, customers, recipes, tables and all other operational data remain intact.
-</div>
-<hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
-<h3>Complete Operational Reset</h3>
-<div class="notice bad"><b>Use this only when you want to start fresh.</b> It clears sales, bills, table orders, attendance history, expenses, purchases, wastage, customers, inventory movement history, business-day/Z-report history and owner-capital transactions. Inventory quantities and average costs are reset to zero. Your menu/prices, recipes, staff profiles, vendors, business settings, payment methods/QRs and owner password are preserved.</div>
-<div class="toolbar">
-  <input id="fullResetPassword" type="password" placeholder="Owner password">
-  <input id="fullResetConfirm" placeholder="Type RESET TEA AMO" style="min-width:180px">
-  <button class="btn danger" id="fullSystemReset" type="button">Reset System</button>
-</div>
-
-
-<hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
-<h3>Payment Methods & QR Codes</h3>
-<div class="sub payment-qr-intro">Upload a square QR image for each digital payment method.</div>
-<div class="grid g3 payment-qr-settings" id="quickQrMethods">
-  <div class="statbox qr-method-card" data-quick-method="eSewa">
-    <div class="qr-method-head"><b>eSewa</b><span class="qr-method-status">No QR</span></div>
-    <div class="qr-method-body">
-      <div class="qr-method-art"><img id="qrPreviewESewa" class="qr-preview hidden" alt="eSewa QR preview"><span class="qr-method-empty">No QR yet</span></div>
-      <div class="qr-method-controls">
-        <button class="qr-upload-btn" type="button" onclick="document.getElementById('qrUploadESewa').click()">Upload QR</button><input id="qrUploadESewa" type="file" accept="image/*" hidden>
-        <details class="qr-method-more"><summary>More options</summary><div class="qr-more-actions"><button type="button" onclick="clearPaymentQr('eSewa')">Remove QR</button><button type="button" id="qrRemoveMethodESewa">Remove method</button></div></details>
+<section id="settings" aria-label="Settings and Backup">
+  <div class="settings-heading"><h2>Settings &amp; Backup</h2><p>Manage your business, payments, backups and system access.</p></div>
+  <div class="settings-layout">
+    <div class="settings-main settings-panel">
+      <div class="settings-panel-heading"><span class="settings-icon" aria-hidden="true">⚙</span><div><h3>Business &amp; Operations Settings</h3><p>Business details, account security and payment methods.</p></div></div>
+      <details class="settings-disclosure" open>
+        <summary><span class="settings-icon" aria-hidden="true">▣</span><span class="settings-summary-copy"><strong>Business Settings</strong><small>Set your business name, branch and currency.</small></span><span class="settings-chevron" aria-hidden="true"></span></summary>
+        <div class="settings-disclosure-content"><div class="settings-form-grid">
+          <label>Business Name<input id="businessName" autocomplete="organization"></label><label>Branch<input id="branchName" autocomplete="off"></label><label>Currency<input id="currency" autocomplete="off"></label><label>Tax %<input id="taxRate" type="number" min="0" step=".01" inputmode="decimal"></label>
+        </div><div class="settings-form-actions"><button class="btn" id="saveBusiness" type="button">Save Changes</button></div></div>
+      </details>
+      <details class="settings-disclosure">
+        <summary><span class="settings-icon" aria-hidden="true">♙</span><span class="settings-summary-copy"><strong>Owner Password</strong><small>Change the administrator password.</small></span><span class="settings-chevron" aria-hidden="true"></span></summary>
+        <div class="settings-disclosure-content"><div class="settings-form-grid settings-form-grid--password">
+          <label>Current password<input id="oldPass" type="password" autocomplete="current-password"></label><label>New password<input id="newPass" type="password" autocomplete="new-password" minlength="8"></label><label>Confirm new password<input id="confirmPass" type="password" autocomplete="new-password" minlength="8"></label>
+        </div><div class="settings-form-actions"><button class="btn" id="changePass" type="button">Change Password</button></div></div>
+      </details>
+      <details class="settings-disclosure settings-payments" open>
+        <summary><span class="settings-icon" aria-hidden="true">▤</span><span class="settings-summary-copy"><strong>Payment Methods &amp; QR Codes</strong><small>Manage the QR images shown at checkout.</small></span><span class="settings-chevron" aria-hidden="true"></span></summary>
+        <div class="settings-disclosure-content"><div class="payment-qr-settings" id="quickQrMethods">
+          <div class="qr-method-card" data-quick-method="eSewa"><div class="qr-brand qr-brand--esewa" aria-hidden="true">e</div><div class="qr-method-copy"><div class="qr-method-head"><b>eSewa</b><span class="qr-method-status">No QR</span></div><small>Digital wallet QR code</small></div><div class="qr-method-art"><img id="qrPreviewESewa" class="qr-preview hidden" alt="eSewa QR preview"><span class="qr-method-empty">No QR</span></div><div class="qr-method-controls"><button class="qr-upload-btn" type="button" onclick="document.getElementById('qrUploadESewa').click()">Upload QR</button><input id="qrUploadESewa" type="file" accept="image/*" hidden></div><details class="qr-method-more"><summary aria-label="More eSewa options">•••</summary><div class="qr-more-actions"><button type="button" onclick="clearPaymentQr('eSewa')">Remove QR</button><button type="button" id="qrRemoveMethodESewa">Remove method</button></div></details></div>
+          <div class="qr-method-card" data-quick-method="Khalti"><div class="qr-brand qr-brand--khalti" aria-hidden="true">K</div><div class="qr-method-copy"><div class="qr-method-head"><b>Khalti</b><span class="qr-method-status">No QR</span></div><small>Digital wallet QR code</small></div><div class="qr-method-art"><img id="qrPreviewKhalti" class="qr-preview hidden" alt="Khalti QR preview"><span class="qr-method-empty">No QR</span></div><div class="qr-method-controls"><button class="qr-upload-btn" type="button" onclick="document.getElementById('qrUploadKhalti').click()">Upload QR</button><input id="qrUploadKhalti" type="file" accept="image/*" hidden></div><details class="qr-method-more"><summary aria-label="More Khalti options">•••</summary><div class="qr-more-actions"><button type="button" onclick="clearPaymentQr('Khalti')">Remove QR</button><button type="button" id="qrRemoveMethodKhalti">Remove method</button></div></details></div>
+          <div class="qr-method-card" data-quick-method="Fonepay"><div class="qr-brand qr-brand--fonepay" aria-hidden="true">fone</div><div class="qr-method-copy"><div class="qr-method-head"><b>Fonepay</b><span class="qr-method-status">No QR</span></div><small>Digital wallet QR code</small></div><div class="qr-method-art"><img id="qrPreviewFonepay" class="qr-preview hidden" alt="Fonepay QR preview"><span class="qr-method-empty">No QR</span></div><div class="qr-method-controls"><button class="qr-upload-btn" type="button" onclick="document.getElementById('qrUploadFonepay').click()">Upload QR</button><input id="qrUploadFonepay" type="file" accept="image/*" hidden></div><details class="qr-method-more"><summary aria-label="More Fonepay options">•••</summary><div class="qr-more-actions"><button type="button" onclick="clearPaymentQr('Fonepay')">Remove QR</button><button type="button" id="qrRemoveMethodFonepay">Remove method</button></div></details></div>
+        </div><div class="settings-payment-footer"><button class="settings-text-button" id="openAddPaymentMethod" type="button">+ Add Payment Method</button><details class="settings-extra-methods"><summary>Other methods</summary><div class="scroll"><table><thead><tr><th>Payment Method</th><th>Type</th><th>QR</th><th>Action</th></tr></thead><tbody id="paymentMethodBody"></tbody></table></div></details></div></div>
+      </details>
+    </div>
+    <div class="settings-side">
+      <div class="settings-panel settings-side-card"><div class="settings-panel-heading"><span class="settings-icon" aria-hidden="true">▤</span><div><h3>Backup &amp; Recovery</h3><p>Save a copy of your business data or restore one.</p></div></div><div class="settings-button-row"><button class="btn" id="backupBtn" type="button">↓ &nbsp;Download Full Backup</button><label class="btn alt settings-file-button">↑ &nbsp;Restore Backup<input id="restoreFile" type="file" accept=".json,application/json" hidden></label></div><p class="settings-note">ⓘ &nbsp;Data is saved persistently. Regular backups add another layer of safety.</p></div>
+      <div class="settings-panel settings-side-card"><div class="settings-panel-heading"><span class="settings-icon" aria-hidden="true">▣</span><div><h3>Server Phone Access</h3><p>Open the server workspace on another device.</p></div></div><div class="settings-sync"><span class="settings-sync-icon" aria-hidden="true">◉</span><div><small>Live sync</small><strong id="lanSyncStatus">LOCAL-ONLY</strong><span id="lanSyncDetail">Launch through the included server to enable staff phones.</span></div></div><div class="settings-address"><div><small>Server address</small><strong id="lanStaffUrl">—</strong></div><button class="btn alt" id="lanCopyStaffUrl" type="button">Copy Address</button></div><button class="btn alt settings-wide-button" id="lanOpenStaffTest" type="button">↗ &nbsp;Open Server Page</button><details class="settings-advanced"><summary>Connection tools</summary><p>Create phone logins from Servers and link them to staff profiles where needed.</p><div class="settings-button-row"><button class="btn alt" id="lanSyncNow" type="button">Sync Menu &amp; Tables</button><button class="btn alt" id="lanRefreshNetwork" type="button">Refresh Address</button></div></details></div>
+      <div class="settings-panel settings-side-card settings-reset-card"><div class="settings-panel-heading"><span class="settings-icon settings-icon--danger" aria-hidden="true">⚠</span><div><h3>Reset Tools</h3><p>Use these tools only when needed.</p></div></div>
+        <details class="settings-reset-row"><summary><span><strong>Clear Dashboard Only</strong><small>Reset displayed totals without deleting records.</small></span><span class="settings-chevron" aria-hidden="true"></span></summary><div class="settings-reset-content"><p>Sales, bills, reports and other business data remain intact.</p><label>Owner password<input id="resetPassword" type="password" autocomplete="current-password"></label><div class="settings-button-row"><button class="btn danger" id="resetAll" type="button">Clear Dashboard</button><button class="btn alt" id="restoreDashboard" type="button">Restore Full View</button></div></div></details>
+        <details class="settings-reset-row"><summary><span><strong>Reset Behavior</strong><small>See what each reset changes.</small></span><span class="settings-chevron" aria-hidden="true"></span></summary><div class="settings-reset-content"><p>Clearing the Dashboard changes only its displayed baseline. The operational reset below clears operational history while preserving business setup and payment configuration.</p></div></details>
+        <details class="settings-reset-row"><summary><span><strong>Complete Operational Reset</strong><small>Clear operational data and begin fresh.</small></span><span class="settings-chevron" aria-hidden="true"></span></summary><div class="settings-reset-content"><p>This clears bills, orders, attendance history, expenses, purchases, wastage, customers, inventory movements, business-day reports and owner-capital transactions. Inventory quantities and average costs become zero. Menu, recipes, staff profiles, vendors, business settings, payment methods, QR codes and owner password remain.</p><button class="btn danger" id="openOperationalReset" type="button">Review Operational Reset</button></div></details>
       </div>
     </div>
   </div>
-  <div class="statbox qr-method-card" data-quick-method="Khalti">
-    <div class="qr-method-head"><b>Khalti</b><span class="qr-method-status">No QR</span></div>
-    <div class="qr-method-body">
-      <div class="qr-method-art"><img id="qrPreviewKhalti" class="qr-preview hidden" alt="Khalti QR preview"><span class="qr-method-empty">No QR yet</span></div>
-      <div class="qr-method-controls">
-        <button class="qr-upload-btn" type="button" onclick="document.getElementById('qrUploadKhalti').click()">Upload QR</button><input id="qrUploadKhalti" type="file" accept="image/*" hidden>
-        <details class="qr-method-more"><summary>More options</summary><div class="qr-more-actions"><button type="button" onclick="clearPaymentQr('Khalti')">Remove QR</button><button type="button" id="qrRemoveMethodKhalti">Remove method</button></div></details>
-      </div>
-    </div>
-  </div>
-  <div class="statbox qr-method-card" data-quick-method="Fonepay">
-    <div class="qr-method-head"><b>Fonepay</b><span class="qr-method-status">No QR</span></div>
-    <div class="qr-method-body">
-      <div class="qr-method-art"><img id="qrPreviewFonepay" class="qr-preview hidden" alt="Fonepay QR preview"><span class="qr-method-empty">No QR yet</span></div>
-      <div class="qr-method-controls">
-        <button class="qr-upload-btn" type="button" onclick="document.getElementById('qrUploadFonepay').click()">Upload QR</button><input id="qrUploadFonepay" type="file" accept="image/*" hidden>
-        <details class="qr-method-more"><summary>More options</summary><div class="qr-more-actions"><button type="button" onclick="clearPaymentQr('Fonepay')">Remove QR</button><button type="button" id="qrRemoveMethodFonepay">Remove method</button></div></details>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="card" style="margin-top:12px;padding:12px">
-  <h3 style="margin-top:0">Add Payment Method</h3>
-  <div class="toolbar">
-    <input id="newPaymentMethodName" placeholder="Payment method name (example: IME Pay)" style="flex:1">
-    <select id="newPaymentMethodKind"><option value="digital">Digital / QR</option><option value="card">Card / Terminal</option><option value="other">Other</option></select>
-    <button class="btn" id="addPaymentMethodBtn" type="button">Add Payment Method</button>
-  </div>
-  <div class="scroll" style="margin-top:10px"><table><thead><tr><th>Payment Method</th><th>Type</th><th>QR</th><th>Action</th></tr></thead><tbody id="paymentMethodBody"></tbody></table></div>
-</div>
-<hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
-<h3>Server Phone Access</h3>
-<div class="notice">
-  Servers sign in at the same TEA AMO address and open the phone workspace. That screen is limited to tables, orders and ordinary payment. Menu prices, inventory, payroll, expenses, reports, backups and resets stay in Administration.
-</div>
-<div class="grid g2">
-  <div class="statbox">
-    <div class="sub">Live sync</div>
-    <b id="lanSyncStatus">LOCAL-ONLY</b>
-    <div class="sub" id="lanSyncDetail" style="margin-top:5px">Launch through the included server to enable staff phones.</div>
-  </div>
-  <div class="statbox">
-    <div class="sub">Server address</div>
-    <b id="lanStaffUrl" style="font-size:12px;word-break:break-all">—</b>
-    <div class="sub" style="margin-top:5px">Same site as Administration. No second deployment.</div>
-  </div>
-</div>
-<div class="toolbar" style="margin-top:10px">
-  <button class="btn" id="lanSyncNow">Sync Menu &amp; Tables</button>
-  <button class="btn alt" id="lanCopyStaffUrl">Copy Server Address</button>
-</div>
-<div class="sub">Create each phone login from Servers. Link it to a staff profile when the person is already in Staff &amp; Attendance. Accounts are enabled or disabled there.</div>
-<div class="toolbar" style="margin-top:8px">
-  <button class="btn alt" id="lanRefreshNetwork">Refresh Server Address</button>
-  <button class="btn alt" id="lanOpenStaffTest">Open Server Page</button>
-</div>
-
-
-</div></div></section>
+  <div class="modal settings-modal" id="addPaymentMethodModal" role="dialog" aria-modal="true" aria-labelledby="addPaymentMethodTitle"><div class="box"><div class="settings-modal-head"><h2 id="addPaymentMethodTitle">Add Payment Method</h2><button class="settings-modal-close" type="button" data-close-settings-modal aria-label="Close">×</button></div><p>Choose how this method will be used at checkout.</p><div class="settings-modal-form"><label>Method name<input id="newPaymentMethodName" placeholder="For example, IME Pay"></label><label>Type<select id="newPaymentMethodKind"><option value="digital">Digital / QR</option><option value="card">Card / Terminal</option><option value="other">Other</option></select></label></div><div class="settings-form-actions"><button class="btn alt" type="button" data-close-settings-modal>Cancel</button><button class="btn" id="addPaymentMethodBtn" type="button">Add Method</button></div></div></div>
+  <div class="modal settings-modal" id="operationalResetModal" role="dialog" aria-modal="true" aria-labelledby="operationalResetTitle"><div class="box"><div class="settings-modal-head"><h2 id="operationalResetTitle">Complete Operational Reset</h2><button class="settings-modal-close" type="button" data-close-settings-modal aria-label="Close">×</button></div><p class="settings-modal-warning">This clears operational records and resets inventory quantities. A safety backup is downloaded first. Business setup and payment configuration are preserved.</p><div class="settings-modal-form"><label>Owner password<input id="fullResetPassword" type="password" autocomplete="current-password"></label><label>Type RESET TEA AMO<input id="fullResetConfirm" autocomplete="off" placeholder="RESET TEA AMO"></label></div><div class="settings-form-actions"><button class="btn alt" type="button" data-close-settings-modal>Cancel</button><button class="btn danger" id="fullSystemReset" type="button">Reset Operational Data</button></div></div></div>
+</section>

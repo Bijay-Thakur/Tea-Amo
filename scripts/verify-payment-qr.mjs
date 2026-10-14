@@ -9,7 +9,8 @@ for (const name of ['ESewa', 'Fonepay']) {
   assert.match(settings, new RegExp(`id="qrUpload${name}"`));
   assert.match(settings, new RegExp(`id="qrPreview${name}"`));
 }
-assert.match(settings, /Manage QR Codes/);
+assert.match(settings, /Payment Methods &amp; QR Codes/);
+assert.match(settings, /id="quickQrMethods"/);
 assert.match(pos, /id="mainPaymentQrUpload"/);
 assert.match(pos, /id="mainPaymentQrFile"/);
 

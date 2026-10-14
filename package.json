@@ -14,7 +14,8 @@
     "test:floor3d": "node scripts/verify-floor3d.mjs",
     "test:admin-payment": "node scripts/verify-admin-payment.mjs",
     "test:server-payment": "node scripts/verify-server-payment.mjs",
-    "test:payment-qr": "node scripts/verify-payment-qr.mjs"
+    "test:payment-qr": "node scripts/verify-payment-qr.mjs",
+    "test:settings": "node scripts/verify-settings.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
