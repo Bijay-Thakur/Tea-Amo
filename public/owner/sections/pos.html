@@ -106,9 +106,6 @@
               <div id="mainPaymentQrMissing" class="sub hidden">QR not configured in Settings.</div>
             </div>
           </div>
-          <div class="bill-gate" id="billGate">
-            <div class="sub" id="billGateNote">Print the bill before payment, or skip the bill from More.</div>
-          </div>
           <div class="admin-pos-actions">
             <button class="btn admin-pos-primary" id="checkout" type="button">Complete Payment</button>
             <div class="admin-pos-secondary">
@@ -116,7 +113,6 @@
               <button class="btn alt" type="button" id="posMoreBtn" aria-expanded="false" aria-controls="posMoreMenu">More</button>
             </div>
             <div id="posMoreMenu" class="admin-pos-more hidden" role="menu">
-              <button type="button" id="skipOpenBill">Skip Bill</button>
               <button type="button" onclick="openSplitBill()">Split Bill</button>
               <button type="button" onclick="openMixedPayment()">Mixed Payment</button>
               <button type="button" onclick="openNonChargeable()">Non-Chargeable</button>

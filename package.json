@@ -10,10 +10,15 @@
     "data:migrate": "node scripts/migrate-master.mjs",
     "test:cloud": "node scripts/verify-ops.mjs",
     "test:sql": "node scripts/verify-sql.mjs",
-    "test:gateway": "node scripts/verify-gateway.mjs"
+    "test:gateway": "node scripts/verify-gateway.mjs",
+    "test:floor3d": "node scripts/verify-floor3d.mjs",
+    "test:admin-payment": "node scripts/verify-admin-payment.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "vercel": "^48.2.9"
+  },
+  "dependencies": {
+    "three": "0.184.0"
   }
 }

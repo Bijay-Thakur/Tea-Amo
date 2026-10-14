@@ -19,7 +19,7 @@ const server = http.createServer(async (req, res) => {
       if (file) {
         res.statusCode = 200;
         res.setHeader('Content-Type', contentType(file));
-        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('Cache-Control', url.pathname.startsWith('/assets/3d/') || url.pathname.startsWith('/vendor/three/') ? 'public, max-age=3600' : 'no-store');
         fs.createReadStream(file).pipe(res);
         return;
       }

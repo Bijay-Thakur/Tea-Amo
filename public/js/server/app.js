@@ -95,12 +95,19 @@ function tableDetail(table) {
   return 'No customer';
 }
 
+window.teaServerFloorSnapshot=()=>[...(cfg?.tables||[])].map(table=>({
+  id:table.id,name:table.name,active:table.active!==false,status:tableState(table),
+  detail:tableState(table)==='available'?'':tableDetail(table)
+}));
 function renderTables() {
+  window.teaServerFloor3D?.setTables(window.teaServerFloorSnapshot());
   const label = { available: 'Available', occupied: 'Occupied', attention: 'Attention', reserved: 'Reserved' };
-  $('floor').innerHTML = sortedTables().map((table) => {
+  const floor = $('floor');
+  floor.querySelectorAll(':scope > .floor-table').forEach((button) => button.remove());
+  floor.insertAdjacentHTML('beforeend', sortedTables().map((table) => {
     const state = tableState(table);
     return `<button type="button" class="floor-table ${state}" style="left:${Number(table.x)}%;top:${Number(table.y)}%;width:${Number(table.w)}%;height:${Number(table.h)}%" data-table="${esc(table.id)}" aria-label="${esc(table.name)} ${label[state]}"><span class="state">${label[state]}</span></button>`;
-  }).join('');
+  }).join(''));
   const counts = { all: sortedTables().length, available: 0, occupied: 0, reserved: 0, attention: 0 };
   sortedTables().forEach((table) => { counts[tableState(table)] += 1; });
   const filters = [['all', 'All'], ['available', 'Available'], ['occupied', 'Occupied'], ['reserved', 'Reserved']];
@@ -516,6 +523,7 @@ function openTableSheet(id) {
   openSheet(table.name, meta, actions);
   $('sheetActions').dataset.table = table.id;
 }
+window.teaServerFloorSelect = openTableSheet;
 
 let reserveTableId = '';
 function openReserve(id) {

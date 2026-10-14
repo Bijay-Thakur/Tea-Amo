@@ -5,6 +5,16 @@
       "includeFiles": "public/**"
     }
   },
+  "headers": [
+    {
+      "source": "/assets/3d/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }]
+    },
+    {
+      "source": "/vendor/three/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }]
+    }
+  ],
   "routes": [
     { "src": "/", "dest": "/api/index?__path=" },
     { "src": "/index.html", "dest": "/api/index?__path=index.html" },

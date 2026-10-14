@@ -461,10 +461,6 @@ body.clay #pos .payment-qr-panel {
   box-shadow: none;
 }
 
-body.clay #pos #billGate {
-  margin-top: 8px;
-}
-
 body.clay #pos .admin-pos-actions {
   position: relative;
   display: grid;
