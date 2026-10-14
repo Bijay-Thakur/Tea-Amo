@@ -96,14 +96,16 @@
             <div id="posPayMethods" class="admin-pos-pays" role="radiogroup" aria-label="Payment method"></div>
             <div id="cashRow" class="admin-pos-cash">
               <label>Cash Received
-                <input id="cashReceived" type="number" min="0" step=".01" inputmode="decimal" placeholder="Leave blank for exact">
+                <input id="cashReceived" type="number" min="0" step=".01" inputmode="decimal" placeholder="Enter cash received">
               </label>
               <div id="changeDueBadge" class="admin-pos-change">Change: Rs 0</div>
             </div>
             <div id="mainPaymentQrPanel" class="payment-qr-panel hidden">
               <div class="sub" id="mainPaymentQrLabel">Payment QR</div>
               <img id="mainPaymentQrImage" alt="TEA AMO payment QR">
-              <div id="mainPaymentQrMissing" class="sub hidden">QR not configured in Settings.</div>
+              <div id="mainPaymentQrMissing" class="sub hidden">No QR uploaded yet.</div>
+              <button id="mainPaymentQrUpload" class="btn alt small" type="button">Upload QR</button>
+              <input id="mainPaymentQrFile" type="file" accept="image/*" hidden>
             </div>
           </div>
           <div class="admin-pos-actions">

@@ -50,4 +50,6 @@
 
 - Removed the bill-print gate from direct checkout, split bills, mixed payments, and non-chargeable orders. The Print Bill action remains optional. The existing closed-POS and payment validations remain active.
 - Removed the obsolete Skip Bill action and gate message from the Admin POS UI. `npm run test:admin-payment` checks unprinted checkout, the payment dialogs, and the closed-POS rejection.
+- Cash payments now require an entered amount covering the total in both Admin and Server. Admin split and mixed cash payments use the same rule, and their payment buttons stay disabled until valid. `npm run test:server-payment` checks the Server flow.
+- Admin shows eSewa and Fonepay QR upload controls in Settings even when a method has been removed; uploading restores that method. The Admin POS QR panel also offers Upload/Replace. `npm run test:payment-qr` checks this behavior.
 - Local SQL and gateway checks passed. The cloud integration test could not connect to its remote service in this sandbox, so live multi-client payment and floor synchronization remain unverified.

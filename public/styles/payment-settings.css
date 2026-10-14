@@ -1,5 +1,38 @@
+body.clay #settings .payment-qr-shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid #e6e9e5;
+  border-radius: 16px;
+}
+
+body.clay #settings .payment-qr-shortcut div {
+  display: grid;
+  gap: 2px;
+}
+
+body.clay #settings .payment-qr-shortcut span {
+  color: #657067;
+  font-size: 12px;
+}
+
+@media (max-width: 560px) {
+  body.clay #settings .payment-qr-shortcut {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 body.clay #settings .payment-qr-intro {
   margin: 4px 0 12px;
+}
+
+body.clay #settings #quickQrMethods {
+  scroll-margin-top: 96px;
 }
 
 body.clay #settings .payment-qr-settings {

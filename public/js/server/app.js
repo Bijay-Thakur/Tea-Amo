@@ -199,6 +199,7 @@ function updateBar() {
 window.openTable = async (id, mode) => {
   activeTable = cfg.tables.find((table) => String(table.id) === String(id));
   if (!activeTable) return;
+  $('cashReceived').value = '';
   closeSheet();
   $('tableTitle').textContent = activeTable.name;
   $('payTitle').textContent = activeTable.name;
@@ -360,7 +361,11 @@ async function saveOrder() {
 
 function updatePaymentAvailability() {
   const button = $('completePay');
-  if (button && !button.classList.contains('pay-done')) button.disabled = !activeTable || !order.cart.length || paying;
+  if (!button || button.classList.contains('pay-done')) return;
+  const amount = $('cashReceived')?.value;
+  const received = Number(amount);
+  const cashReady = String(amount ?? '').trim() !== '' && Number.isFinite(received) && received >= 0 && received >= calc().total - 0.009;
+  button.disabled = !activeTable || !order.cart.length || paying || !payMethod || (String(payMethod).toLowerCase() === 'cash' && !cashReady);
 }
 function staffBillHtml() {
   const totals = calc();
@@ -400,6 +405,7 @@ function updateCashPreview() {
   const short = payMethod === 'Cash' && raw !== '' && received + 0.009 < total;
   box.classList.toggle('short', short);
   $('changeDue').textContent = short ? 'Short ' + money(total - received) : money(Math.max(0, received - total));
+  updatePaymentAvailability();
 }
 function renderPay() {
   if (!cfg) return;
@@ -422,8 +428,9 @@ function cashPayload() {
   const total = calc().total;
   if (String(payMethod).toLowerCase() !== 'cash') return { cash_received: 0, change_due: 0 };
   const raw = $('cashReceived').value;
-  const received = raw === '' ? total : Number(raw);
-  if (!Number.isFinite(received) || received < total - 0.009) throw new Error('Cash received is less than the amount due.');
+  if (String(raw).trim() === '') throw new Error('Enter the cash received amount.');
+  const received = Number(raw);
+  if (!Number.isFinite(received) || received < 0 || received < total - 0.009) throw new Error('Cash received is less than the amount due.');
   return { cash_received: received, change_due: Math.max(0, received - total) };
 }
 async function takePayment() {

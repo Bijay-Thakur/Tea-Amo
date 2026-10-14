@@ -510,6 +510,7 @@ function saveCurrentOrderUI(){
 }
 function openTable(id){
   const t=tableById(id);if(!t||!t.active)return;
+  $('cashReceived').value='';
   activeTableId=id;const o=ensureTableOrder(id);
   $('tableSelectView').classList.add('hidden');$('tableOrderView').classList.remove('hidden');
   $('activeTableLabel').textContent=t.name;
@@ -519,6 +520,7 @@ function openTable(id){
   renderPOSWorkspace()
 }
 function openCounter(){
+  $('cashReceived').value='';
   activeTableId='counter';  $('tableSelectView').classList.add('hidden');$('tableOrderView').classList.remove('hidden');
   $('activeTableLabel').textContent='Counter';
   $('orderType').disabled=false;if($('orderType').value==='Dine-in')$('orderType').value='Takeaway';$('orderRef').value='';
@@ -559,7 +561,7 @@ function renderPOSWorkspace(){
   const t=activeTableId&&activeTableId!=='counter'?tableById(activeTableId):null;
   paintAdminOrderHead();
   $('posStatus').innerHTML=posAllowed()?`<span class="good">POS open</span><span>Changes save automatically.</span>`:dayRecord().finalized?'<span class="warn">Day finalized</span><span>Billing is locked.</span>':'<span class="bad">POS closed</span><span>Reopen it from Business Day.</span>';
-  $('checkout').disabled=!posAllowed();$('checkout').style.opacity=posAllowed()?'1':'.55';
+  updateCheckoutAvailability();
   $('tableReserveBtn').style.display=t?'inline-flex':'none';$('tableAttentionBtn').style.display=t?'inline-flex':'none';
   if(t)$('tableAttentionBtn').textContent=t.attention?'Resolve Attention':'Mark Attention'
 }
@@ -1187,21 +1189,24 @@ function renderQrSettings(){
   const map=[['eSewa','qrPreviewESewa'],['Khalti','qrPreviewKhalti'],['Fonepay','qrPreviewFonepay']];
   for(const [method,id] of map){
     const el=$(id),qr=paymentQrFor(method);if(!el)continue;
+    const enabled=paymentMethods().some(item=>item.name===method);
     el.classList.toggle('hidden',!qr);if(qr)el.src=qr;else el.removeAttribute('src');
     const card=el.closest('.qr-method-card');
     card?.querySelector('.qr-method-empty')?.classList.toggle('hidden',!!qr);
-    const status=card?.querySelector('.qr-method-status');if(status){status.textContent=qr?'QR ready':'No QR';status.classList.toggle('ready',!!qr)}
-    const upload=card?.querySelector('.qr-upload-btn');if(upload)upload.textContent=qr?'Replace QR':'Upload QR';
+    const status=card?.querySelector('.qr-method-status');if(status){status.textContent=!enabled?'Method off':qr?'QR ready':'No QR';status.classList.toggle('ready',enabled&&!!qr)}
+    const upload=card?.querySelector('.qr-upload-btn');if(upload)upload.textContent=!enabled?'Enable & Upload QR':qr?'Replace QR':'Upload QR';
     const clear=card?.querySelector('.qr-more-actions button');if(clear)clear.disabled=!qr
+    const remove=card?.querySelector('.qr-more-actions button:last-child');if(remove)remove.disabled=!enabled
   }
 }
 async function setPaymentQr(method,file){
   try{
     const data=await imageFileToQrData(file);
+    if(!paymentMethods().some(item=>item.name===method))state.business.payment_methods.push({name:method,kind:'digital'});
     state.business.payment_qr=state.business.payment_qr||{};
     state.business.payment_qr[method]=data;
     await persistNow('payment_qr');
-    renderQrSettings();updateMainPaymentQr();
+    renderPaymentMethodSettings();updateMainPaymentQr();
     Promise.resolve(pushLanConfig()).catch(()=>{});
     setActionStatus(`${method} QR saved.`,'good')
   }catch(err){alert(err?.message||'Could not save QR image.')}
@@ -1526,6 +1531,8 @@ async function init(){
   $('qrUploadESewa').onchange=e=>{const f=e.target.files?.[0];if(f)setPaymentQr('eSewa',f);e.target.value=''};
   $('qrUploadKhalti').onchange=e=>{const f=e.target.files?.[0];if(f)setPaymentQr('Khalti',f);e.target.value=''};
   $('qrUploadFonepay').onchange=e=>{const f=e.target.files?.[0];if(f)setPaymentQr('Fonepay',f);e.target.value=''};
+  $('mainPaymentQrUpload').onclick=()=>{const input=$('mainPaymentQrFile');input.dataset.method=$('payment').value;input.click()};
+  $('mainPaymentQrFile').onchange=e=>{const f=e.target.files?.[0],method=e.target.dataset.method;if(f&&method)setPaymentQr(method,f);e.target.value=''};
   $('qrRemoveMethodESewa').onclick=()=>removePaymentMethod('eSewa');
   $('qrRemoveMethodKhalti').onclick=()=>removePaymentMethod('Khalti');
   $('qrRemoveMethodFonepay').onclick=()=>removePaymentMethod('Fonepay');
@@ -1623,7 +1630,7 @@ renderInventoryStock=function(){const q=($('stockSearch')?.value||'').trim().toL
 inventoryPrintHTML=function(){const rows=state.ingredients.filter(i=>i.active&&(i.location||guessInventoryLocation(i.name))===inventoryArea).sort((a,b)=>a.name.localeCompare(b.name));return`<div class="print-logo">${esc(state.business.name)}</div><div class="print-subtitle">${esc(state.business.branch)}</div><div class="print-title">${inventoryArea==='bar'?'BAR':'KITCHEN'} INVENTORY STOCK REPORT</div><div class="print-meta-row"><span>Generated</span><b>${nptDateTime()} NPT</b></div><table class="print-table"><thead><tr><th>Ingredient</th><th class="num">Stock</th><th class="num">Reorder</th><th class="num">Target</th><th class="num">Suggested</th></tr></thead><tbody>${rows.map(i=>`<tr><td>${esc(i.name)}</td><td class="num">${i.stock.toFixed(3)} ${esc(i.unit)}</td><td class="num">${i.reorder}</td><td class="num">${i.target}</td><td class="num">${suggested(i).toFixed(3)}</td></tr>`).join('')}</tbody></table>`};
 
 function selectedTotals(selection){const full=calcCart(),subtotal=selection.reduce((z,r)=>{const m=menuItem(r.id);return z+(m?m.price*r.qty:0)},0),ratio=full.subtotal?subtotal/full.subtotal:1,discount=full.discount*ratio,tax=(subtotal-discount)*Number(state.business.taxRate||0)/100;return{subtotal,discount,tax,total:subtotal-discount+tax}}
-function normalPaymentInfo(total,method,cashReceived){let change=0;if(method==='Cash'){const rec=cashReceived===''||cashReceived==null?total:Number(cashReceived);if(!Number.isFinite(rec)||rec<total-0.009)throw new Error('Cash received is less than the amount due.');change=Math.max(0,rec-total);return{payment:'Cash',payments:{Cash:total},cash_received:rec,change_due:change}}return{payment:method,payments:{[method]:total},cash_received:0,change_due:0}}
+function normalPaymentInfo(total,method,cashReceived){if(!method)throw new Error('Choose a payment method.');if(method==='Cash'){if(String(cashReceived??'').trim()==='')throw new Error('Enter the cash received amount.');const rec=Number(cashReceived);if(!Number.isFinite(rec)||rec<0||rec<total-0.009)throw new Error('Cash received is less than the amount due.');return{payment:'Cash',payments:{Cash:total},cash_received:rec,change_due:Math.max(0,rec-total)}}return{payment:method,payments:{[method]:total},cash_received:0,change_due:0}}
 async function completeSelection(selection,paymentInfo,{nonChargeable=false,reason='',note=''}={}){
   if(!posAllowed())throw new Error('POS is closed or this business day is finalized.');
   if(!selection.length)throw new Error('Select at least one item.');
@@ -1652,11 +1659,12 @@ function showOpenBill(){if(!currentCart().length)return alert('Add items before 
 if($('printOpenBill'))$('printOpenBill').onclick=showOpenBill;
 if($('printOpenBillNow'))$('printOpenBillNow').onclick=()=>window.print();
 if($('closeBill'))$('closeBill').onclick=()=>$('billModal').classList.remove('show');
-checkout=async function(){if(checkoutBusy)return;if(!posAllowed())return alert('POS is closed or this business day is finalized.');const cart=currentCart();if(!cart.length)return alert('Add at least one item.');const pending=unservedCountForOrder({cart});if(pending&&!confirm(`${pending} item(s) are still unserved. Complete payment anyway?`))return;const btn=$('checkout');checkoutBusy=true;btn.disabled=true;const txt=btn.textContent;btn.textContent='Processing…';try{const sel=cart.map(c=>({id:c.id,qty:c.qty})),total=selectedTotals(sel).total,info=normalPaymentInfo(total,$('payment').value,$('cashReceived').value);await completeSelection(sel,info);$('cashReceived').value='';updateChangeDue()}catch(e){alert(e.message||e);console.error(e)}finally{checkoutBusy=false;btn.textContent=txt;btn.disabled=!posAllowed()}}
-function updateChangeDue(){if(!$('changeDueBadge')||!$('payment'))return;const total=calcCart().total,method=$('payment').value,received=Number($('cashReceived').value||0),cash=method==='Cash';$('cashReceived').style.display=cash?'':'none';$('changeDueBadge').style.display=cash?'':'none';$('cashRow')?.classList.toggle('hidden',!cash);$('changeDueBadge').textContent=`Change: ${rs(Math.max(0,received-total))}`}
+checkout=async function(){if(checkoutBusy)return;if(!posAllowed())return alert('POS is closed or this business day is finalized.');const cart=currentCart();if(!cart.length)return alert('Add at least one item.');const pending=unservedCountForOrder({cart});if(pending&&!confirm(`${pending} item(s) are still unserved. Complete payment anyway?`))return;const btn=$('checkout');checkoutBusy=true;btn.disabled=true;const txt=btn.textContent;btn.textContent='Processing…';try{const sel=cart.map(c=>({id:c.id,qty:c.qty})),total=selectedTotals(sel).total,info=normalPaymentInfo(total,$('payment').value,$('cashReceived').value);await completeSelection(sel,info);$('cashReceived').value='';updateChangeDue()}catch(e){alert(e.message||e);console.error(e)}finally{checkoutBusy=false;btn.textContent=txt;updateCheckoutAvailability()}}
+function updateCheckoutAvailability(){const btn=$('checkout'),payment=$('payment');if(!btn||!payment)return;const method=payment.value,methodReady=!!method&&[...payment.options].some(option=>option.value===method),amount=$('cashReceived')?.value,total=calcCart().total,cashReady=String(amount??'').trim()!==''&&Number.isFinite(Number(amount))&&Number(amount)>=0&&Number(amount)>=total-0.009;btn.disabled=checkoutBusy||!posAllowed()||!currentCart().length||!methodReady||(method==='Cash'&&!cashReady);btn.style.opacity=btn.disabled?'.55':'1'}
+function updateChangeDue(){if(!$('changeDueBadge')||!$('payment'))return;const total=calcCart().total,method=$('payment').value,received=Number($('cashReceived').value||0),cash=method==='Cash';$('cashReceived').style.display=cash?'':'none';$('changeDueBadge').style.display=cash?'':'none';$('cashRow')?.classList.toggle('hidden',!cash);$('changeDueBadge').textContent=`Change: ${rs(Math.max(0,received-total))}`;updateCheckoutAvailability()}
 function openSplitBill(){const cart=currentCart();if(!cart.length)return alert('Add items first.');$('splitBillRows').innerHTML=cart.map(c=>{const m=menuItem(c.id);return`<div class="split-line"><div><b>${esc(m?.name||'Item')}</b><div class="sub">${c.qty} ordered × ${rs(m?.price||0)}</div></div><input type="number" min="0" max="${c.qty}" step="1" value="0" data-split="${c.id}" oninput="updateSplitTotal()"><b>${rs(m?.price||0)}</b></div>`}).join('');$('splitCashReceived').value='';updateSplitTotal();$('splitBillModal').classList.add('show')}
 function getSplitSelection(){return [...document.querySelectorAll('[data-split]')].map(i=>({id:Number(i.dataset.split),qty:Math.max(0,Math.min(Number(i.max),Math.floor(Number(i.value||0))))})).filter(x=>x.qty>0)}
-function updateSplitTotal(){const s=getSplitSelection();$('splitSelectedTotal').textContent=rs(s.length?selectedTotals(s).total:0)}
+function updateSplitTotal(){const s=getSplitSelection(),total=s.length?selectedTotals(s).total:0,method=$('splitPaymentMethod').value,amount=$('splitCashReceived').value,cashReady=String(amount).trim()!==''&&Number.isFinite(Number(amount))&&Number(amount)>=0&&Number(amount)>=total-0.009;$('splitSelectedTotal').textContent=rs(total);$('splitCashReceived').classList.toggle('hidden',method!=='Cash');$('paySplitSelected').disabled=!s.length||!method||(method==='Cash'&&!cashReady)}
 async function paySplitSelected(mixed){const s=getSplitSelection();if(!s.length)return alert('Choose at least one item/quantity.');if(mixed){closeModal('splitBillModal');openMixedPayment(s,{split:true});return}try{const total=selectedTotals(s).total,info=normalPaymentInfo(total,$('splitPaymentMethod').value,$('splitCashReceived').value);await completeSelection(s,info);closeModal('splitBillModal')}catch(e){alert(e.message||e)}}
 function openMixedPayment(selection=null,opts={}){const sel=selection||currentCart().map(c=>({id:c.id,qty:c.qty}));if(!sel.length)return alert('Add items first.');mixedPaymentContext={selection:sel,opts};['mixCash','mixCashReceived','mixESewa','mixKhalti','mixFonepay','mixCard'].forEach(id=>$(id).value=0);$('mixedDue').textContent=rs(selectedTotals(sel).total);updateMixedPaymentPreview();$('mixedPaymentModal').classList.add('show')}
 function mixedValues(){return{Cash:Number($('mixCash').value||0),eSewa:Number($('mixESewa').value||0),Khalti:Number($('mixKhalti').value||0),Fonepay:Number($('mixFonepay').value||0),Card:Number($('mixCard').value||0)}}
@@ -1724,8 +1732,8 @@ function renderPaymentMethodOptions(){
   if($('splitPaymentMethod')){$('splitPaymentMethod').innerHTML=html;if(methods.some(m=>m.name===splitCurrent))$('splitPaymentMethod').value=splitCurrent}
   const setOperationalSelect=(id,extra=[])=>{const el=$(id);if(!el)return;const cur=el.value,names=[...methods.map(m=>m.name),...extra.filter(x=>!methods.some(m=>m.name===x))];el.innerHTML=names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');if(names.includes(cur))el.value=cur};
   setOperationalSelect('expensePayment',['Bank']);setOperationalSelect('recvPayment',['Bank','Credit']);
-  ['eSewa','Khalti','Fonepay'].forEach(name=>{const box=document.querySelector(`[data-quick-method="${name}"]`);if(box)box.classList.toggle('hidden',!methods.some(m=>m.name===name))});
   if(typeof renderPosPayChips==='function')renderPosPayChips();
+  updateChangeDue();
 }
 function renderPosPayChips(){
   const host=$('posPayMethods');if(!host||!$('payment'))return;
@@ -1765,21 +1773,21 @@ const _openSplitBillOps=openSplitBill;
 openSplitBill=function(){renderPaymentMethodOptions();return _openSplitBillOps()};
 
 updateMainPaymentQr=function(){
-  const method=$('payment')?.value||'Cash',panel=$('mainPaymentQrPanel'),img=$('mainPaymentQrImage'),label=$('mainPaymentQrLabel'),missing=$('mainPaymentQrMissing');
+  const method=$('payment')?.value||'Cash',panel=$('mainPaymentQrPanel'),img=$('mainPaymentQrImage'),label=$('mainPaymentQrLabel'),missing=$('mainPaymentQrMissing'),upload=$('mainPaymentQrUpload');
   if(typeof renderPosPayChips==='function')renderPosPayChips();
   if(!panel)return;
   const digital=isDigitalPayment(method);panel.classList.toggle('hidden',!digital);if(!digital)return;
-  label.textContent=`${method} QR`;const qr=paymentQrFor(method);img.classList.toggle('hidden',!qr);missing.classList.toggle('hidden',!!qr);if(qr)img.src=qr;else img.removeAttribute('src')
+  label.textContent=`${method} QR`;const qr=paymentQrFor(method);img.classList.toggle('hidden',!qr);missing.classList.toggle('hidden',!!qr);if(qr)img.src=qr;else img.removeAttribute('src');if(upload)upload.textContent=qr?'Replace QR':'Upload QR'
 };
 
 openMixedPayment=function(selection=null,opts={}){
   const sel=selection||currentCart().map(c=>({id:c.id,qty:c.qty}));if(!sel.length)return alert('Add items first.');mixedPaymentContext={selection:sel,opts};
-  const fields=$('mixedPaymentFields');fields.innerHTML=paymentMethods().map(m=>m.name==='Cash'?`<label>Cash applied<input data-mix-method="Cash" type="number" min="0" step=".01" value="0" oninput="updateMixedPaymentPreview()"></label><label>Cash received<input id="mixCashReceived" type="number" min="0" step=".01" value="0" oninput="updateMixedPaymentPreview()"></label>`:`<label>${esc(m.name)}<input data-mix-method="${esc(m.name)}" type="number" min="0" step=".01" value="0" oninput="updateMixedPaymentPreview()"></label>`).join('');
+  const fields=$('mixedPaymentFields');fields.innerHTML=paymentMethods().map(m=>m.name==='Cash'?`<label>Cash applied<input data-mix-method="Cash" type="number" min="0" step=".01" value="0" oninput="updateMixedPaymentPreview()"></label><label>Cash received<input id="mixCashReceived" type="number" min="0" step=".01" placeholder="Enter cash received" oninput="updateMixedPaymentPreview()"></label>`:`<label>${esc(m.name)}<input data-mix-method="${esc(m.name)}" type="number" min="0" step=".01" value="0" oninput="updateMixedPaymentPreview()"></label>`).join('');
   $('mixedDue').textContent=rs(selectedTotals(sel).total);updateMixedPaymentPreview();$('mixedPaymentModal').classList.add('show')
 };
 mixedValues=function(){const out={};document.querySelectorAll('#mixedPaymentFields [data-mix-method]').forEach(el=>out[el.dataset.mixMethod]=Number(el.value||0));return out};
-updateMixedPaymentPreview=function(){if(!mixedPaymentContext)return;const due=selectedTotals(mixedPaymentContext.selection).total,v=mixedValues(),applied=Object.values(v).reduce((a,b)=>a+b,0),remaining=due-applied,received=Number($('mixCashReceived')?.value||0),cash=Number(v.Cash||0),change=cash?Math.max(0,received-cash):0;$('mixedPreview').innerHTML=`Applied: <b>${rs(applied)}</b> · Remaining: <b class="${Math.abs(remaining)<.01?'good':'warn'}">${rs(Math.max(0,remaining))}</b> · Cash change: <b>${rs(change)}</b>`};
-confirmMixedPayment=async function(){if(!mixedPaymentContext)return;const due=selectedTotals(mixedPaymentContext.selection).total,v=mixedValues(),applied=Object.values(v).reduce((a,b)=>a+b,0);if(Math.abs(applied-due)>.01)return alert(`Applied payments must equal ${rs(due)}.`);const rec=Number($('mixCashReceived')?.value||0),cash=Number(v.Cash||0);if(cash>0&&rec<cash-.009)return alert('Cash received cannot be less than cash applied.');const info={payment:'Mixed',payments:v,cash_received:rec,change_due:cash?Math.max(0,rec-cash):0};try{await completeSelection(mixedPaymentContext.selection,info);mixedPaymentContext=null;closeModal('mixedPaymentModal')}catch(e){alert(e.message||e)}};
+updateMixedPaymentPreview=function(){if(!mixedPaymentContext)return;const due=selectedTotals(mixedPaymentContext.selection).total,v=mixedValues(),amounts=Object.values(v),applied=amounts.reduce((a,b)=>a+b,0),remaining=due-applied,raw=$('mixCashReceived')?.value??'',received=Number(raw),cash=Number(v.Cash||0),change=cash?Math.max(0,received-cash):0,validCash=cash<=0||(String(raw).trim()!==''&&Number.isFinite(received)&&received>=cash-.009);$('mixedPreview').innerHTML=`Applied: <b>${rs(applied)}</b> · Remaining: <b class="${Math.abs(remaining)<.01?'good':'warn'}">${rs(Math.max(0,remaining))}</b> · Cash change: <b>${rs(change)}</b>`;$('confirmMixedPayment').disabled=Math.abs(remaining)>.01||!amounts.every(value=>Number.isFinite(value)&&value>=0)||!validCash};
+confirmMixedPayment=async function(){if(!mixedPaymentContext)return;const due=selectedTotals(mixedPaymentContext.selection).total,v=mixedValues(),amounts=Object.values(v),applied=amounts.reduce((a,b)=>a+b,0);if(!amounts.every(value=>Number.isFinite(value)&&value>=0)||Math.abs(applied-due)>.01)return alert(`Applied payments must equal ${rs(due)}.`);const raw=$('mixCashReceived')?.value??'',rec=Number(raw),cash=Number(v.Cash||0);if(cash>0&&(String(raw).trim()===''||!Number.isFinite(rec)||rec<cash-.009))return alert('Enter cash received at least equal to the cash applied.');const info={payment:'Mixed',payments:v,cash_received:cash?rec:0,change_due:cash?Math.max(0,rec-cash):0};try{await completeSelection(mixedPaymentContext.selection,info);mixedPaymentContext=null;closeModal('mixedPaymentModal')}catch(e){alert(e.message||e)}};
 
 // Manual POS opening/closing. No clock-time shutdown.
 isCafeOpen=function(){const r=dayRecord();return !r.finalized&&!r.posClosed};
