@@ -1,5 +1,13 @@
 import { rest, rpc } from './supabase.js';
 
+export function menuImageUrl(item = {}) {
+  for (const value of [item.image_url, item.image, item.photo]) {
+    const url = String(value || '').trim();
+    if (/^https?:\/\//i.test(url)) return url;
+  }
+  return '';
+}
+
 export function stripPaymentQr(business = {}) {
   const methods = (business.payment_methods || []).map((item) => (typeof item === 'string' ? item : item?.name)).filter(Boolean);
   return {

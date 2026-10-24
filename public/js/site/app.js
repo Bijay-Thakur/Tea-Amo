@@ -45,9 +45,28 @@ function itemHref(item) {
   return '/menu/' + encodeURIComponent(item.id);
 }
 
+function photoUrl(item) {
+  const url = String(item?.image_url || item?.image || item?.photo || '').trim();
+  return /^https?:\/\//i.test(url) ? url : '';
+}
+
+window.teaPhotoFallback = function (img) {
+  const parent = img?.parentNode;
+  const mark = img?.dataset?.mark || '';
+  img?.remove();
+  if (parent && !parent.querySelector('img')) parent.textContent = mark;
+};
+
+function photoMarkup(item, className = 'photo', id = '') {
+  const url = photoUrl(item);
+  const mark = esc((item?.name || 'T').slice(0, 1));
+  const idAttr = id ? ` id="${esc(id)}"` : '';
+  if (!url) return `<div class="${className}"${idAttr} aria-hidden="true">${mark}</div>`;
+  return `<div class="${className}"${idAttr}><img src="${esc(url)}" alt="${esc(item.name || '')}" data-mark="${mark}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="window.teaPhotoFallback(this)"></div>`;
+}
+
 function itemCard(cafe, item) {
-  const photo = item.image_url ? `<img src="${esc(item.image_url)}" alt="">` : `<div class="photo">${esc((item.name || 'T').slice(0, 1))}</div>`;
-  return `<a class="card ${item.available === false ? 'unavailable' : ''}" href="${itemHref(item)}">${photo}<b>${esc(item.name)}</b><span class="muted">${esc(item.category)}</span><div class="price">${money(cafe, item.price)}</div></a>`;
+  return `<a class="card ${item.available === false ? 'unavailable' : ''}" href="${itemHref(item)}">${photoMarkup(item)}<b>${esc(item.name)}</b><span class="muted">${esc(item.category)}</span><div class="price">${money(cafe, item.price)}</div></a>`;
 }
 
 function addToCart(item, qty = 1) {
@@ -92,7 +111,12 @@ function renderHome(cafe, menu) {
   const featured = menu.filter((item) => item.category === (cafe.storefront?.featuredCategory || menu[0]?.category)).slice(0, 6);
   if ($('homeFeatured')) $('homeFeatured').innerHTML = featured.map((item) => itemCard(cafe, item)).join('');
   const cats = [...new Set(menu.map((item) => item.category))];
-  if ($('homeCategories')) $('homeCategories').innerHTML = cats.map((cat) => `<a class="btn alt" href="/menu?cat=${encodeURIComponent(cat)}">${esc(cat)}</a>`).join(' ');
+  if ($('homeCategories')) {
+    $('homeCategories').innerHTML = cats.map((cat) => {
+      const cover = menu.find((item) => item.category === cat && photoUrl(item)) || { name: cat };
+      return `<a class="card" href="/menu?cat=${encodeURIComponent(cat)}">${photoMarkup(cover)}<b>${esc(cat)}</b></a>`;
+    }).join('');
+  }
 }
 
 function renderMenuPage(cafe, menu) {
@@ -128,8 +152,8 @@ function renderItem(cafe, menu) {
   $('itemCategory').textContent = item.category;
   $('itemDesc').textContent = item.description || 'Prepared at TEA AMO. Ask staff if you need allergen details.';
   $('itemPrice').textContent = money(cafe, item.price);
-  $('itemPhoto').textContent = item.name.slice(0, 1);
-  if (item.image_url) $('itemPhoto').innerHTML = `<img src="${esc(item.image_url)}" alt="">`;
+  const photo = $('itemPhoto');
+  if (photo) photo.outerHTML = photoMarkup(item, 'photo', 'itemPhoto');
   let qty = 1;
   const sync = () => { $('itemQty').textContent = String(qty); };
   $('itemMinus').onclick = () => { qty = Math.max(1, qty - 1); sync(); };

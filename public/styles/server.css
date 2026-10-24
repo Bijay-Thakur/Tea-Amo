@@ -92,7 +92,7 @@ body.server-app .sv-search { display: grid; gap: 6px; font-size: 13px; font-weig
 body.server-app input, body.server-app select { width: 100%; border-radius: 12px; border: 1px solid #e4e4e2; background: #fff; box-shadow: none; min-height: 44px; }
 body.server-app .sv-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-bottom: 88px; }
 body.server-app .sv-menu article { background: #fff; border: 1px solid #eee; border-radius: 16px; padding: 10px; display: grid; gap: 4px; min-width: 0; }
-body.server-app .sv-menu img, body.server-app .sv-photo { width: 100%; height: 92px; object-fit: cover; border-radius: 12px; background: #f3f3f1; }
+body.server-app .sv-menu img, body.server-app .sv-photo, body.server-app .sv-photo-img { display: block; width: 100%; height: 92px; object-fit: cover; border-radius: 12px; background: #f3f3f1; }
 body.server-app .sv-photo { display: grid; place-items: center; color: #8a8a86; font-weight: 900; font-size: 22px; }
 body.server-app .sv-menu b { font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; }
 body.server-app .sv-menu button { width: 100%; border-radius: 999px; min-height: 40px; }

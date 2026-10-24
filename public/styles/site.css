@@ -28,7 +28,9 @@ a{color:inherit}img{max-width:100%;display:block}button,input,select,textarea{fo
 .chips button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer}
 .chips button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
 .item-hero{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:22px}
-.photo{aspect-ratio:1;border-radius:24px;background:#ece6d8;display:grid;place-items:center;font-size:54px;font-weight:900;color:var(--brand)}
+.photo{position:relative;overflow:hidden;aspect-ratio:1;border-radius:24px;background:#ece6d8;display:grid;place-items:center;font-size:54px;font-weight:900;color:var(--brand)}
+.photo img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover}
+.card .photo{border-radius:16px;font-size:36px;margin-bottom:4px}
 .cart-line{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px dashed var(--line)}
 .qty{display:flex;gap:6px;align-items:center}
 .notice{background:#fff4da;border:1px solid #ead7a4;border-radius:12px;padding:10px 12px;margin-bottom:12px}

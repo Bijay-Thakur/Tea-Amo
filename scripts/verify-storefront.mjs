@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
+import { menuImageUrl } from '../src/slim.js';
 import { quoteItems, validNepalPhone, validateGuestDetails, defaultStorefront, publicBusiness } from '../src/storefront.js';
+
+assert.equal(menuImageUrl({ image_url: 'https://cdn.example/tea.webp' }), 'https://cdn.example/tea.webp');
+assert.equal(menuImageUrl({ photo: 'https://cdn.example/chiya.jpg' }), 'https://cdn.example/chiya.jpg');
+assert.equal(menuImageUrl({ image: 'data:image/png;base64,xx', image_url: '' }), '');
+assert.equal(menuImageUrl({}), '');
 
 assert.equal(validNepalPhone('9800000000'), true);
 assert.equal(validNepalPhone('+9779800000000'), true);

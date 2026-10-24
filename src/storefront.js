@@ -1,5 +1,5 @@
 import { rest, rpc } from './supabase.js';
-import { stripPaymentQr } from './slim.js';
+import { menuImageUrl, stripPaymentQr } from './slim.js';
 
 const RATE_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT = 8;
@@ -120,7 +120,7 @@ export async function loadPublicMenu(env) {
     name: item.name,
     category: item.category || 'Menu',
     price: Number(item.price || 0),
-    image_url: /^https?:\/\//i.test(item.image_url || '') ? item.image_url : '',
+    image_url: menuImageUrl(item),
     description: item.description || '',
     available: true
   }));

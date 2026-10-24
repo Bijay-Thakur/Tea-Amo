@@ -1,5 +1,5 @@
 import { rest, rpc, authAdmin } from './supabase.js';
-import { collectOrders, loadPaymentQr, loadWorkspaceBusiness } from './slim.js';
+import { collectOrders, loadPaymentQr, loadWorkspaceBusiness, menuImageUrl } from './slim.js';
 
 const PRESENCE_MS = 90 * 1000;
 const SERVER_EMAIL_DOMAIN = 'servers.teaamo.local';
@@ -247,7 +247,7 @@ export async function syncCatalog(env, state) {
     category: item.category || 'Menu',
     price: Number(item.price || 0),
     active: item.active !== false,
-    image_url: /^https?:\/\//i.test(item.image_url || '') ? item.image_url : '',
+    image_url: menuImageUrl(item),
     description: String(item.description || '')
   }));
   const tables = (state.tables || []).map((table) => ({
@@ -293,19 +293,19 @@ export async function syncCatalog(env, state) {
   await upsert(env, 'recipes', recipeRows(state.recipes), 'menu_name,ingredient_key');
 }
 
-async function loadServerMenu(env, token) {
+async function loadServerMenu(env) {
   try {
-    return await rest(env, '/rest/v1/menu_items?active=eq.true&select=id,name,category,price,image_url&order=name.asc', { token });
+    return await rest(env, '/rest/v1/menu_items?active=eq.true&select=id,name,category,price,image_url&order=name.asc');
   } catch (error) {
     const message = String(error?.message || error);
     if (!/image_url|schema cache|column/i.test(message)) throw error;
-    return rest(env, '/rest/v1/menu_items?active=eq.true&select=id,name,category,price&order=name.asc', { token });
+    return rest(env, '/rest/v1/menu_items?active=eq.true&select=id,name,category,price&order=name.asc');
   }
 }
 
 export async function workspaceForServer(env, token, profile) {
   const [menu, tables, orders, business, incoming] = await Promise.all([
-    loadServerMenu(env, token),
+    loadServerMenu(env),
     rest(env, '/rest/v1/cafe_tables?active=eq.true&select=id,name,seats,x,y,w,h,kind,attention,reservation,seated&order=name.asc', { token }),
     rest(env, '/rest/v1/live_orders?select=table_id,version,attention,guest_count,discount_type,discount_value,opened_at,order_ref,order_type,updated_by_name,updated_at,order_items(menu_item_id,qty,served_qty)', { token }),
     loadWorkspaceBusiness(env),
@@ -322,7 +322,7 @@ export async function workspaceForServer(env, token, profile) {
       payment_qr: {}
     },
     generation: Number(business.generation || 1),
-    menu: (menu || []).map((item) => ({ ...item, id: numId(item.id), price: Number(item.price), image_url: item.image_url || '' })),
+    menu: (menu || []).map((item) => ({ id: numId(item.id), name: item.name, category: item.category || 'Menu', price: Number(item.price), image_url: menuImageUrl(item) })),
     tables: tables || [],
     orders: collectOrders(orders),
     guest_orders: incoming || []

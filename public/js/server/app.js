@@ -156,6 +156,10 @@ async function loadWorkspace() {
   loadOnline().catch(() => {});
 }
 
+function menuPhotoUrl(item) {
+  const url = String(item?.image_url || item?.image || item?.photo || '').trim();
+  return /^https?:\/\//i.test(url) ? url : '';
+}
 function serverPhotoFallback(img) {
   const fallback = document.createElement('div');
   fallback.className = 'sv-photo';
@@ -173,9 +177,11 @@ function renderMenu() {
   const category = $('category').value;
   const rows = cfg.menu.filter((item) => (!query || item.name.toLowerCase().includes(query)) && (!category || item.category === category));
   $('menu').innerHTML = rows.map((item) => {
-    const photo = item.image_url || item.image || item.photo || '';
+    const photo = menuPhotoUrl(item);
     const mark = esc(String(item.name || 'M').trim().charAt(0) || 'M');
-    const visual = photo ? `<img alt="" data-mark="${mark}" src="${esc(photo)}" onerror="serverPhotoFallback(this)">` : `<div class="sv-photo" aria-hidden="true">${mark}</div>`;
+    const visual = photo
+      ? `<img class="sv-photo-img" alt="${esc(item.name || '')}" data-mark="${mark}" src="${esc(photo)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="serverPhotoFallback(this)">`
+      : `<div class="sv-photo" aria-hidden="true">${mark}</div>`;
     return `<article>${visual}<b>${esc(item.name)}</b><div class="muted">${esc(item.category || 'Menu')}</div><div>${money(item.price)}</div><button type="button" data-add="${esc(item.id)}">Add</button></article>`;
   }).join('') || '<div class="sv-empty">No menu items found.</div>';
 }
