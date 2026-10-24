@@ -168,3 +168,5 @@ body.server-app .hidden { display: none !important; }
   body.printing-bill #staffBill .print-summary-row, body.printing-bill #staffBill .print-meta-row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
   body.printing-bill #staffBill .total { font-weight: 900; border-top: 2px solid #111; margin-top: 4px; padding-top: 6px; }
 }
+.sv-online-list { display: grid; gap: 10px; }
+.sv-online-list .sv-card { margin: 0; }

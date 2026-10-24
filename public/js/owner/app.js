@@ -355,7 +355,7 @@ function hardNav(sec){
 function nav(sec){return hardNav(sec)}
 function renderActive(){
   try{updateTop()}catch(err){console.error('Top render error',err)}
-  const fn={dashboard:renderDashboard,pos:renderPOS,menuadmin:renderMenuAdmin,dayclose:renderDayClose,staff:renderStaff,inventory:renderInventoryActive,recipes:renderRecipes,wastage:renderWaste,vendors:renderVendors,expenses:renderExpenses,capital:renderCapital,customers:renderCustomers,reports:renderReports,dailyreport:renderDailyBusinessReport,dining:renderDining,settings:renderSettings}[activeSection];
+  const fn={dashboard:renderDashboard,pos:renderPOS,menuadmin:renderMenuAdmin,dayclose:renderDayClose,online:window.renderOnlineOrders,staff:renderStaff,inventory:renderInventoryActive,recipes:renderRecipes,wastage:renderWaste,vendors:renderVendors,expenses:renderExpenses,capital:renderCapital,customers:renderCustomers,reports:renderReports,dailyreport:renderDailyBusinessReport,dining:renderDining,settings:renderSettings}[activeSection];
   if(fn){try{fn()}catch(err){console.error('Section widget error',activeSection,err)}}
 }
 function updateTop(){const open=isCafeOpen(),final=dayRecord().finalized;$('clockText').textContent=`${nptDateTime()} NPT · Business day ${businessDayKey()}`;$('branchBadge').textContent=state.business.branch;$('openBadge').innerHTML=open&&!final?'<span class="good">● OPEN</span>':open&&final?'<span class="warn">● FINALIZED</span>':'<span class="bad">● CLOSED</span>'}
@@ -1220,12 +1220,27 @@ async function clearPaymentQr(method){
   setActionStatus(`${method} QR removed.`,'good')
 }
 
+function fillStorefrontSettings(){
+  const s=state.storefront||{};
+  const set=(id,value)=>{if($(id))$(id).value=value||''};
+  const check=(id,value)=>{if($(id))$(id).checked=!!value};
+  set('siteAddress',s.address||'Gokarna, Kathmandu, Nepal');
+  set('sitePhone',s.phone);set('siteEmail',s.email);set('siteHours',s.hours);
+  set('siteLegalName',s.legalName||state.business.name||'TEA AMO');
+  set('sitePan',s.pan);set('siteVat',s.vat);set('siteRegistration',s.registration);
+  set('siteComplaint',s.complaintContact);set('siteMap',s.mapUrl);
+  set('siteFacebook',s.social?.facebook);set('siteInstagram',s.social?.instagram);
+  if($('siteAbout'))$('siteAbout').value=s.about||'';
+  set('siteDeliveryFee',s.deliveryFee||0);set('siteMinOrder',s.minOrder||0);set('sitePrepMinutes',s.prepMinutes||25);
+  check('siteEnabled',s.enabled!==false);check('sitePickup',s.pickupEnabled!==false);check('siteDelivery',!!s.deliveryEnabled);check('sitePaused',!!s.orderingPaused)
+}
 function renderSettings(){
   $('businessName').value=state.business.name;
   $('branchName').value=state.business.branch;
   $('currency').value=state.business.currency;
   $('taxRate').value=state.business.taxRate;
   updateBusinessSaveState();
+  fillStorefrontSettings();
   renderQrSettings()
 }
 function updateBusinessSaveState(){
@@ -1459,9 +1474,11 @@ async function init(){
   if(!browserLoaded){try{browserLoaded=JSON.parse(localStorage.getItem(DB_NAME)||'null')}catch{}}
   if(!browserLoaded){try{const legacy=JSON.parse(localStorage.getItem(LEGACY_KEY)||'null');if(legacy)browserLoaded=legacyToNew(legacy)}catch{}}
   const stamp=x=>{const t=Date.parse(x?.stateUpdatedAt||'');return Number.isFinite(t)?t:0};
+  const generation=x=>Number(x?.operationalGeneration||0);
   let loaded=browserLoaded||serverLoaded;
   if(serverLoaded&&browserLoaded){
-    if(serverLoaded.setup&&!browserLoaded.setup)loaded=serverLoaded;
+    if(generation(serverLoaded)>generation(browserLoaded))loaded=serverLoaded;
+    else if(serverLoaded.setup&&!browserLoaded.setup)loaded=serverLoaded;
     else if(browserLoaded.setup&&!serverLoaded.setup)loaded=browserLoaded;
     else loaded=stamp(browserLoaded)>=stamp(serverLoaded)?browserLoaded:serverLoaded;
   }
@@ -1528,6 +1545,38 @@ async function init(){
   if($('exportItemSalesExcel'))$('exportItemSalesExcel').onclick=exportItemSalesExcel;if($('exportItemSalesCsv'))$('exportItemSalesCsv').onclick=exportItemSalesCsv;
   ['businessName','branchName','currency','taxRate'].forEach(id=>$(id).addEventListener('input',updateBusinessSaveState));
   $('saveBusiness').onclick=saveBusinessNow;
+  if($('saveStorefront'))$('saveStorefront').onclick=async()=>{
+    const storefront={
+      ...(state.storefront||{}),
+      address:$('siteAddress')?.value.trim()||'',
+      phone:$('sitePhone')?.value.trim()||'',
+      email:$('siteEmail')?.value.trim()||'',
+      hours:$('siteHours')?.value.trim()||'',
+      legalName:$('siteLegalName')?.value.trim()||'',
+      pan:$('sitePan')?.value.trim()||'',
+      vat:$('siteVat')?.value.trim()||'',
+      registration:$('siteRegistration')?.value.trim()||'',
+      complaintContact:$('siteComplaint')?.value.trim()||'',
+      mapUrl:$('siteMap')?.value.trim()||'',
+      social:{facebook:$('siteFacebook')?.value.trim()||'',instagram:$('siteInstagram')?.value.trim()||''},
+      about:$('siteAbout')?.value.trim()||'',
+      deliveryFee:Number($('siteDeliveryFee')?.value||0),
+      minOrder:Number($('siteMinOrder')?.value||0),
+      prepMinutes:Number($('sitePrepMinutes')?.value||25),
+      enabled:$('siteEnabled')?.checked!==false,
+      pickupEnabled:$('sitePickup')?.checked!==false,
+      deliveryEnabled:!!$('siteDelivery')?.checked,
+      orderingPaused:!!$('sitePaused')?.checked
+    };
+    state.storefront=storefront;
+    try{
+      const response=await fetch('/api/admin/storefront',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({storefront})});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.error||'Could not save website settings');
+      if(data.revision)window.__teaRevision=data.revision;
+      setActionStatus('Website and online-ordering settings saved.','good');
+    }catch(error){alert(error.message)}
+  };
   $('changePass').onclick=async()=>{if($('newPass').value!==$('confirmPass').value)return alert('New passwords do not match.');if(!await verifyOwnerPassword($('oldPass').value))return alert('Incorrect current password.');if($('newPass').value.length<8)return alert('Use at least 8 characters.');await setOwnerPassword($('newPass').value);$('oldPass').value=$('newPass').value=$('confirmPass').value='';if(!await persistNow('password_changed'))return alert('Password changed in memory but could not be saved. Try again before closing the app.');audit('owner_password_changed','PBKDF2 credential updated');alert('Password changed securely.')};
   $('lanSyncNow').onclick=async()=>{const ok=await pushLanConfig();await pullLanOrders(true);alert(ok?'Staff phone access synced.':'LAN server is not connected. Launch RUN_TEA_AMO_SERVER.bat first.')};
   $('lanCopyStaffUrl').onclick=async()=>{
@@ -1830,16 +1879,31 @@ async function completeOperationalReset(){
   if(!await verifyOwnerPassword($('fullResetPassword').value))return alert('Incorrect owner password.');
   if($('fullResetConfirm').value.trim()!=='RESET TEA AMO')return alert('Type RESET TEA AMO exactly to continue.');
   if(!confirm('This will clear operational/test data and reset stock quantities to zero. A safety backup will be downloaded first. Menu, prices, recipes, staff profiles, vendors, payment methods, QR codes, business settings and owner password will be kept. Continue?'))return;
-  downloadSafetyBackup('PRE_RESET');
-  // Keep configuration; clear operational history and open work.
-  state.bills=[];state.attendance=[];state.purchases=[];state.waste=[];state.expenses=[];state.customers=[];state.inventoryLog=[];state.businessDays=[];state.auditLog=[];state.ownerCapital=[];state.dailyBusinessReports=[];state.cart=[];state.tableOrders={};state.dashboardBaseline=null;
-  state.ingredients.forEach(i=>{i.stock=0;i.avg_cost=0});state.staff.forEach(st=>{st.clockIn=null});state.tables.forEach(t=>{t.attention=false;t.reservation=null});
-  activeTableId=null;lastPaidBill=null;rebuildIndex();
-  await Promise.allSettled(state.tables.map(t=>deleteLanOrder(t.id)));
-  if(!await persistNow('complete_operational_reset'))return alert('Reset changes could not be saved. Restore from the automatic PRE_RESET backup before continuing.');
-  $('fullResetPassword').value=$('fullResetConfirm').value='';
-  closeSettingsModal($('operationalResetModal'));
-  renderActive();updateTop();setActionStatus('System reset complete. TEA AMO is ready for a fresh operational start.','good');alert('Complete operational reset finished. Your setup/menu/payment configuration was preserved.')
+  const backupOk=downloadSafetyBackup('PRE_RESET');
+  if(!backupOk&&!confirm('The safety backup could not be downloaded. Continue with the reset anyway?'))return;
+  try{
+    const preview=await fetch('/api/admin/reset/preview',{credentials:'include',cache:'no-store'}).then(r=>r.json());
+    const counts=preview.counts||{};
+    const summary=`Cloud records to clear:\nSales ${counts.sales||0}, open orders ${counts.live_orders||0}, bills ${counts.bills||0}, expenses ${counts.expenses||0}, guest orders ${counts.guest_orders||0}.\nMenu, staff, vendors and payment setup stay. Continue?`;
+    if(!confirm(summary))return;
+    const response=await fetch('/api/admin/reset/operational',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('fullResetPassword').value,phrase:'RESET TEA AMO'})});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||!result.ok||!result.verified)throw new Error(result.error||'The database reset was not verified.');
+    state=repairState(result.state||state);
+    state.operationalGeneration=Number(result.generation||state.operationalGeneration||1);
+    window.__teaRevision=Number(result.revision||0);
+    activeTableId=null;lastPaidBill=null;rebuildIndex();
+    try{localStorage.setItem(DB_NAME,JSON.stringify(state))}catch{}
+    await dbPutLocal(state);
+    $('fullResetPassword').value=$('fullResetConfirm').value='';
+    closeSettingsModal($('operationalResetModal'));
+    renderActive();updateTop();
+    setActionStatus('System reset verified. Operational records were removed and the new generation is '+state.operationalGeneration+'.','good');
+    alert('Complete operational reset finished and verified. Setup, menu and payment configuration were preserved.')
+  }catch(error){
+    setActionStatus(error.message||'Reset failed. Existing data was not reported as cleared.','bad');
+    alert('Reset did not complete: '+(error.message||'Unknown error'))
+  }
 }
 // ===== END OPERATIONS PATCH =====
 

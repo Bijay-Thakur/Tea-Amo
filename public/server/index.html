@@ -9,6 +9,7 @@
 <title>TEA AMO Server</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<!--BOOT-->
 <link rel="stylesheet" href="/styles/staff.css">
 <link rel="stylesheet" href="/styles/clay-staff.css">
 <link rel="stylesheet" href="/styles/server.css?v=20261014-payment-flow">
@@ -124,6 +125,16 @@
     </section>
   </main>
 
+  <main id="onlineView" class="hidden">
+    <div class="sv-page-head">
+      <div>
+        <h2>Online orders</h2>
+        <div class="muted">Guest delivery and pickup orders from the café website.</div>
+      </div>
+      <button class="sv-ghost" id="onlineRefresh" type="button">Refresh</button>
+    </div>
+    <div id="onlineList" class="sv-online-list"></div>
+  </main>
   <main id="profileView" class="hidden">
     <section class="sv-card">
       <h2 id="profileName">Server</h2>
@@ -141,6 +152,7 @@
   <nav class="sv-tabs" aria-label="Server">
     <button type="button" data-tab="tables" class="on">Tables</button>
     <button type="button" data-tab="order" id="tabOrder">Current Order <span id="tabBadge" class="sv-badge hidden">0</span></button>
+    <button type="button" data-tab="online" id="tabOnline">Online <span id="onlineBadge" class="sv-badge hidden">0</span></button>
     <button type="button" data-tab="profile">Profile</button>
   </nav>
 </div>
@@ -174,8 +186,8 @@
     <div class="sv-receipt-actions"><button id="paidReceiptPrint" type="button">Print receipt</button><button id="paidReceiptClose" class="sv-ghost" type="button">Done</button></div>
   </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>
-<script src="/js/server/app.js?v=20261014-payment-flow"></script>
-<script type="module" src="/js/floor3d/bootstrap.js?v=20261014-seating"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js" defer></script>
+<script src="/js/server/app.js?v=20261024-stabilize"></script>
+<script type="module" src="/js/floor3d/bootstrap.js?v=20261024-stabilize"></script>
 </body>
 </html>

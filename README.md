@@ -2,7 +2,8 @@
 
 Cafe operating system for Tea Amo. One Vercel address serves both roles. Supabase is the database.
 
-- `/` sign in
+- `/` public café website and guest ordering
+- `/staff/login` Staff and Administration sign in
 - `/admin` Administration (the existing owner workspace)
 - `/server` Server, the phone workspace for waiters
 
@@ -32,6 +33,8 @@ Live tables and payments are rows in Supabase, with a version check on each orde
 The rest of the café record (menu editing, stock, bills already merged into the record, expenses, staff, attendance, settings) is still the Administration document, stored in `business_documents`. Payments, stock movements from those payments, and open orders are applied from the normalized tables whenever that document is read or saved.
 
 `master-state.json` and `lan-state.json` stay in the repository as the legacy export. Do not delete them. They are not the live store after migration.
+
+Public guest orders use the same `menu_items` catalog as POS. They do not create customer accounts. Staff see them under Online Orders. Complete operational reset now deletes cloud `sales` and related operational rows; success is only reported after post-delete counts are verified.
 
 ## Layout
 
@@ -87,7 +90,9 @@ Hosting is one Vercel project. Supabase remains the database.
 3. Add `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in the Vercel project settings. Use the hosted Supabase project, not `127.0.0.1`.
 4. `npm run deploy`
 
-The printed URL serves `/`, `/admin`, and `/server`.
+The printed URL serves `/` (public website), `/staff/login`, `/admin`, and `/server`.
+
+After pull, run `npx supabase db push` so the operational-reset and guest-order migration is applied. Do not run a complete operational reset against live café data as a deploy check.
 
 ## Server accounts
 

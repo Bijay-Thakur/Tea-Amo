@@ -1,4 +1,5 @@
 import { rest, rpc, authAdmin } from './supabase.js';
+import { collectOrders, loadPaymentQr, loadWorkspaceBusiness } from './slim.js';
 
 const PRESENCE_MS = 90 * 1000;
 const SERVER_EMAIL_DOMAIN = 'servers.teaamo.local';
@@ -80,12 +81,15 @@ async function paged(env, path) {
   return rows;
 }
 
-export async function loadOperational(env) {
+export async function loadOperational(env, { recentOnly = true } = {}) {
+  const salesPath = recentOnly
+    ? '/rest/v1/sales?select=id,bill,created_at&order=created_at.desc&limit=250'
+    : '/rest/v1/sales?select=id,bill,created_at&order=created_at.asc';
   const [orders, tables, stocks, sales] = await Promise.all([
     rest(env, '/rest/v1/live_orders?select=*,order_items(menu_item_id,name,unit_price,qty,served_qty)'),
     rest(env, '/rest/v1/cafe_tables?select=*'),
     rest(env, '/rest/v1/ingredients?select=key,stock,avg_cost'),
-    paged(env, '/rest/v1/sales?select=id,bill,created_at&order=created_at.asc')
+    recentOnly ? rest(env, salesPath) : paged(env, salesPath)
   ]);
   return { orders: orders || [], tables: tables || [], stocks: stocks || [], sales: sales || [] };
 }
@@ -161,14 +165,28 @@ function deductMissingSales(state, sales) {
 }
 
 export async function saveMaster(env, incoming, expectedRevision) {
-  const current = await rest(env, '/rest/v1/business_documents?name=eq.master&select=revision,data');
+  let current;
+  try {
+    current = await rest(env, '/rest/v1/business_documents?name=eq.master&select=revision,data,operational_generation');
+  } catch (error) {
+    if (!/operational_generation|schema cache|column/i.test(String(error.message || error))) throw error;
+    current = await rest(env, '/rest/v1/business_documents?name=eq.master&select=revision,data');
+  }
   const row = current?.[0];
   const revision = Number(row?.revision || 0);
+  const generation = Number(row?.operational_generation || row?.data?.operationalGeneration || 1);
   if (expectedRevision != null && Number(expectedRevision) !== revision && revision !== 0) {
     const error = new Error('state_revision_conflict');
     error.status = 409;
     throw error;
   }
+  if (incoming?.operationalGeneration != null && Number(incoming.operationalGeneration) < generation) {
+    const error = new Error('stale_generation');
+    error.status = 409;
+    error.code = 'stale_generation';
+    throw error;
+  }
+  incoming.operationalGeneration = Math.max(Number(incoming.operationalGeneration || 1), generation);
   const operational = await loadOperational(env);
   deductMissingSales(incoming, operational.sales);
   stripStaffSecrets(incoming);
@@ -177,11 +195,22 @@ export async function saveMaster(env, incoming, expectedRevision) {
   const nextRevision = revision + 1;
   incoming.stateUpdatedAt = new Date().toISOString();
   if (row) {
-    const updated = await rest(env, `/rest/v1/business_documents?name=eq.master&revision=eq.${revision}`, {
-      method: 'PATCH',
-      prefer: 'return=representation',
-      body: { revision: nextRevision, data: incoming, updated_at: new Date().toISOString() }
-    });
+    let updated;
+    const patch = { revision: nextRevision, data: incoming, updated_at: new Date().toISOString() };
+    try {
+      updated = await rest(env, `/rest/v1/business_documents?name=eq.master&revision=eq.${revision}`, {
+        method: 'PATCH',
+        prefer: 'return=representation',
+        body: { ...patch, operational_generation: incoming.operationalGeneration }
+      });
+    } catch (error) {
+      if (!/operational_generation|schema cache|column/i.test(String(error.message || error))) throw error;
+      updated = await rest(env, `/rest/v1/business_documents?name=eq.master&revision=eq.${revision}`, {
+        method: 'PATCH',
+        prefer: 'return=representation',
+        body: patch
+      });
+    }
     if (!updated?.length) {
       const error = new Error('state_revision_conflict');
       error.status = 409;
@@ -218,7 +247,8 @@ export async function syncCatalog(env, state) {
     category: item.category || 'Menu',
     price: Number(item.price || 0),
     active: item.active !== false,
-    image_url: /^https?:\/\//i.test(item.image_url || '') ? item.image_url : ''
+    image_url: /^https?:\/\//i.test(item.image_url || '') ? item.image_url : '',
+    description: String(item.description || '')
   }));
   const tables = (state.tables || []).map((table) => ({
     id: String(table.id),
@@ -253,8 +283,8 @@ export async function syncCatalog(env, state) {
     await upsert(env, 'menu_items', menu, 'id');
   } catch (error) {
     const message = String(error?.message || error);
-    if (!/image_url|schema cache|column/i.test(message)) throw error;
-    await upsert(env, 'menu_items', menu.map(({ image_url, ...row }) => row), 'id');
+    if (!/image_url|description|schema cache|column/i.test(message)) throw error;
+    await upsert(env, 'menu_items', menu.map(({ image_url, description, ...row }) => row), 'id');
   }
   await upsert(env, 'cafe_tables', tables, 'id');
   await upsert(env, 'ingredients', ingredients, 'key');
@@ -274,15 +304,13 @@ async function loadServerMenu(env, token) {
 }
 
 export async function workspaceForServer(env, token, profile) {
-  const [menu, tables, orders, docRows] = await Promise.all([
+  const [menu, tables, orders, business, incoming] = await Promise.all([
     loadServerMenu(env, token),
     rest(env, '/rest/v1/cafe_tables?active=eq.true&select=id,name,seats,x,y,w,h,kind,attention,reservation,seated&order=name.asc', { token }),
     rest(env, '/rest/v1/live_orders?select=table_id,version,attention,guest_count,discount_type,discount_value,opened_at,order_ref,order_type,updated_by_name,updated_at,order_items(menu_item_id,qty,served_qty)', { token }),
-    rest(env, '/rest/v1/business_documents?name=eq.master&select=data')
+    loadWorkspaceBusiness(env),
+    rest(env, '/rest/v1/guest_orders?select=id,public_ref,status,fulfillment,payment_method,payment_status,customer_name,customer_phone,delivery_address,landmark,instructions,items,subtotal,tax,delivery_fee,total,currency,created_at,updated_at,contact_redacted_at,sale_id,accepted_by_name&order=created_at.desc&limit=80').catch(() => [])
   ]);
-  const business = docRows?.[0]?.data?.business || {};
-  const docMenu = new Map((docRows?.[0]?.data?.menu || []).map((item) => [String(item.id), /^https?:\/\//i.test(item.image_url || '') ? item.image_url : '']));
-  const methods = (business.payment_methods || []).map((item) => (typeof item === 'string' ? item : item.name)).filter(Boolean);
   return {
     staff: { id: profile.staff_id, name: profile.display_name, role: 'server_staff' },
     business: {
@@ -290,18 +318,18 @@ export async function workspaceForServer(env, token, profile) {
       branch: business.branch || '',
       currency: business.currency || 'Rs',
       taxRate: Number(business.taxRate || 0),
-      payment_methods: methods.length ? methods : ['Cash'],
-      payment_qr: business.payment_qr || {}
+      payment_methods: business.payment_methods || ['Cash'],
+      payment_qr: {}
     },
-    menu: (menu || []).map((item) => ({ ...item, id: numId(item.id), price: Number(item.price), image_url: item.image_url || docMenu.get(String(item.id)) || '' })),
+    generation: Number(business.generation || 1),
+    menu: (menu || []).map((item) => ({ ...item, id: numId(item.id), price: Number(item.price), image_url: item.image_url || '' })),
     tables: tables || [],
-    orders: Object.fromEntries((orders || []).map((order) => [order.table_id, {
-      version: order.version,
-      attention: order.attention,
-      order: clientOrder(order)
-    }]))
+    orders: collectOrders(orders),
+    guest_orders: incoming || []
   };
 }
+
+export { loadPaymentQr };
 
 export async function orderPayload(env, tableId, token) {
   const rows = await rest(env, `/rest/v1/live_orders?table_id=eq.${encodeURIComponent(tableId)}&select=*,order_items(menu_item_id,qty,served_qty)`, { token });

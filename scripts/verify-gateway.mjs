@@ -85,13 +85,16 @@ function check(name, ok) {
 }
 
 const home = await hit('/');
-check('login screen is served', home.status === 200 && home.text.includes('Administration') && !home.text.includes('Create Account') && !home.text.includes('service-role-secret'));
+check('public homepage is served', home.status === 200 && home.text.includes('Explore menu') && home.text.includes('Staff / Admin Login') && !home.text.includes('Create Account') && !home.text.includes('service-role-secret'));
+
+const login = await hit('/staff/login');
+check('staff login is served', login.status === 200 && login.text.includes('Administration') && login.text.includes('Back to the café website') && !login.text.includes('service-role-secret'));
 
 const admin = await hit('/admin');
-check('unauthenticated /admin redirects home', admin.status === 302 && admin.location === '/');
+check('unauthenticated /admin redirects to staff login', admin.status === 302 && admin.location === '/staff/login');
 
 const server = await hit('/server');
-check('unauthenticated /server redirects home', server.status === 302 && server.location === '/');
+check('unauthenticated /server redirects to staff login', server.status === 302 && server.location === '/staff/login');
 
 const staff = await hit('/staff');
 check('/staff redirects to /server', staff.status === 302 && staff.location === '/server');
@@ -120,7 +123,7 @@ const adminServer = await hit('/server', { cookie: 'tea_access=admin-token' });
 check('admin is routed away from /server', adminServer.status === 302 && adminServer.location === '/admin');
 
 const disabled = await hit('/server', { cookie: 'tea_access=disabled-token' });
-check('disabled server is signed out', disabled.status === 302 && disabled.location === '/' && disabled.cookies.some((cookie) => cookie.startsWith('tea_access=')));
+check('disabled server is signed out', disabled.status === 302 && disabled.location === '/staff/login' && disabled.cookies.some((cookie) => cookie.startsWith('tea_access=')));
 
 const wrongRole = await hit('/api/auth/login', { method: 'POST', body: { username: 'sanjay', password: 'correct-password', role: 'admin' } });
 check('role on the form is not authorization', wrongRole.status === 401);

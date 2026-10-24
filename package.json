@@ -17,7 +17,11 @@
     "test:payment-response": "node scripts/verify-payment-response.mjs",
     "test:order-sync": "node scripts/verify-server-order-save.mjs && node scripts/verify-admin-served-sync.mjs",
     "test:payment-qr": "node scripts/verify-payment-qr.mjs",
-    "test:settings": "node scripts/verify-settings.mjs"
+    "test:settings": "node scripts/verify-settings.mjs",
+    "test:reset": "node scripts/verify-reset.mjs",
+    "test:storefront": "node scripts/verify-storefront.mjs",
+    "test:workspace": "node scripts/verify-workspace-payload.mjs",
+    "test": "node scripts/verify-sql.mjs && node scripts/verify-settings.mjs && node scripts/verify-reset.mjs && node scripts/verify-storefront.mjs && node scripts/verify-workspace-payload.mjs && node scripts/verify-gateway.mjs && node scripts/verify-floor3d.mjs && node scripts/verify-payment-response.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

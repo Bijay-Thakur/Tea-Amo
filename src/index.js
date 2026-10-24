@@ -4,12 +4,33 @@ import { establish, applySession, homeFor, loginResponse, logoutResponse, requir
 import { passwordGrant, rest, rpc } from './supabase.js';
 import {
   assertLoginAllowed, clearLoginFailures, completePayment, createServerAccount, findLogin,
-  listServers, loadOperational, markLogin, orderPayload, projectState,
+  listServers, loadOperational, loadPaymentQr, markLogin, orderPayload, projectState,
   publicProfile, recordLoginFailure, resetServerPassword, rpcStatus, saveMaster, saveOrder,
   reserveTable, seatTable, setServerActive, setTableAttention, updateServer, workspaceForServer
 } from './ops.js';
+import { collectOrders } from './slim.js';
+import { previewOperationalReset, runOperationalReset, saveDashboardBaseline } from './reset.js';
+import {
+  guestOrderByToken, listGuestOrders, loadMasterData, loadPublicMenu, placeGuestOrder,
+  publicBusiness, publicGuestOrder, saveStorefront, staffGuestOrder, updateGuestOrder
+} from './storefront.js';
 
-const OWNER_SECTIONS = ['dashboard', 'pos', 'dayclose', 'staff', 'servers', 'menuadmin', 'inventory', 'recipes', 'wastage', 'vendors', 'expenses', 'capital', 'customers', 'dailyreport', 'reports', 'dining', 'settings'];
+const OWNER_SECTIONS = ['dashboard', 'pos', 'dayclose', 'online', 'staff', 'servers', 'menuadmin', 'inventory', 'recipes', 'wastage', 'vendors', 'expenses', 'capital', 'customers', 'dailyreport', 'reports', 'dining', 'settings'];
+const STAFF_LOGIN = '/staff/login';
+const PUBLIC_PAGES = {
+  '/': { page: 'home', title: 'TEA AMO — Café in Gokarna, Kathmandu' },
+  '/menu': { page: 'menu', title: 'Menu — TEA AMO' },
+  '/cart': { page: 'cart', title: 'Cart — TEA AMO' },
+  '/checkout': { page: 'checkout', title: 'Checkout — TEA AMO' },
+  '/order/confirmation': { page: 'confirmation', title: 'Order confirmation — TEA AMO' },
+  '/delivery': { page: 'delivery', title: 'Delivery & pickup — TEA AMO' },
+  '/about': { page: 'about', title: 'About — TEA AMO' },
+  '/contact': { page: 'contact', title: 'Contact — TEA AMO' },
+  '/faq': { page: 'faq', title: 'FAQ — TEA AMO' },
+  '/privacy-policy': { page: 'privacy', title: 'Privacy policy — TEA AMO' },
+  '/terms': { page: 'terms', title: 'Terms — TEA AMO' },
+  '/delivery-policy': { page: 'delivery-policy', title: 'Delivery, cancellation & refunds — TEA AMO' }
+};
 
 function missingConfig() {
   return text(`<!doctype html><html><head><meta charset="utf-8"><title>TEA AMO</title></head><body style="font-family:Nunito,sans-serif;padding:32px"><h1>TEA AMO</h1><p>This deployment does not have Supabase credentials yet. Set SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY, then reload.</p></body></html>`, 503);
@@ -19,6 +40,36 @@ async function assetText(env, request, assetPath) {
   const response = await env.ASSETS.fetch(new Request(new URL(assetPath, request.url)));
   if (!response.ok) throw new Error(`Missing ${assetPath}`);
   return response.text();
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+}
+
+async function publicPage(env, request, spec, path) {
+  const [shell, body] = await Promise.all([
+    assetText(env, request, '/site/shell.html'),
+    assetText(env, request, `/site/pages/${spec.page}.html`)
+  ]);
+  return text(shell
+    .replaceAll('{{TITLE}}', escapeHtml(spec.title))
+    .replaceAll('{{PATH}}', escapeHtml(path))
+    .replace('<!--PAGE-->', body));
+}
+
+async function serverPage(env, request, session) {
+  const [html, workspace] = await Promise.all([
+    assetText(env, request, '/server/index.html'),
+    workspaceForServer(env, session.access, session.profile)
+  ]);
+  const boot = `<script>window.TEA_AMO_CLOUD=${JSON.stringify({ url: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY })};window.TEA_AMO_SESSION=${JSON.stringify({
+    role: session.profile.role,
+    home: homeFor(session.profile.role),
+    access_token: session.access,
+    refresh_token: session.refresh,
+    profile: publicProfile(session.profile)
+  })};window.TEA_AMO_WORKSPACE=${JSON.stringify(workspace)};</script>`;
+  return text(html.replace('<!--BOOT-->', boot));
 }
 
 async function ownerPage(env, request) {
@@ -43,7 +94,7 @@ async function serveAsset(env, request, assetPath) {
 
 async function guardedPage(request, env, role, html) {
   const session = await establish(request, env);
-  if (!session || session.inactive) return redirect('/', session?.inactive ? logoutCookies(request) : []);
+  if (!session || session.inactive) return redirect(STAFF_LOGIN, session?.inactive ? logoutCookies(request) : []);
   if (session.profile.role !== role) return redirect(homeFor(session.profile.role));
   const response = await html();
   return applySession(response, request, session);
@@ -100,7 +151,7 @@ async function adminState(request, env, session) {
       const saved = await saveMaster(env, body.state, body.expected_revision);
       return json({ ok: true, ...saved, saved_at: new Date().toISOString() });
     } catch (error) {
-      if (error.status === 409) return json({ error: 'The café record changed on another screen. Reload and try again.', code: 'conflict' }, 409);
+      if (error.status === 409) return json({ error: error.code === 'stale_generation' ? 'This browser copy is from before a system reset. Reload TEA AMO.' : 'The café record changed on another screen. Reload and try again.', code: error.code || 'conflict' }, 409);
       throw error;
     }
   }
@@ -166,11 +217,57 @@ async function handleOps(request, env, path) {
       return applySession(json(result), request, session);
     }
     if (path === '/api/ops/orders' && request.method === 'GET') {
-      const rows = await rest(env, '/rest/v1/live_orders?select=*,order_items(menu_item_id,qty,served_qty)', { token: session.access });
-      const orders = {};
-      for (const row of rows || []) orders[row.table_id] = { version: row.version, attention: row.attention, order: (await orderPayload(env, row.table_id, session.access)).order, updated_by: row.updated_by_name };
-      const tables = await rest(env, '/rest/v1/cafe_tables?select=id,seated,reservation,attention', { token: session.access });
-      return applySession(json({ orders, completions: [], tables: tables || [] }), request, session);
+      const [rows, tables, incoming] = await Promise.all([
+        rest(env, '/rest/v1/live_orders?select=*,order_items(menu_item_id,qty,served_qty)', { token: session.access }),
+        rest(env, '/rest/v1/cafe_tables?select=id,seated,reservation,attention', { token: session.access }),
+        listGuestOrders(env).catch(() => [])
+      ]);
+      const orders = collectOrders(rows);
+      return applySession(json({
+        orders,
+        completions: [],
+        tables: tables || [],
+        guest_orders: (incoming || []).map(staffGuestOrder)
+      }), request, session);
+    }
+    if (path === '/api/ops/guest-orders' && request.method === 'GET') {
+      return applySession(json({ orders: (await listGuestOrders(env).catch(() => [])).map(staffGuestOrder) }), request, session);
+    }
+    const guestMatch = path.match(/^\/api\/ops\/guest-orders\/([^/]+)$/);
+    if (guestMatch && request.method === 'POST') {
+      const result = await updateGuestOrder(env, decodeURIComponent(guestMatch[1]), await readJson(request), session);
+      return applySession(json({ order: staffGuestOrder(result) }), request, session);
+    }
+    if (guestMatch && request.method === 'PUT') {
+      const body = await readJson(request);
+      const current = (await listGuestOrders(env).catch(() => [])).find((row) => row.id === decodeURIComponent(guestMatch[1]));
+      if (!current) return json({ error: 'Order not found' }, 404);
+      if (body.status && body.status !== current.status) {
+        await updateGuestOrder(env, current.id, { status: body.status, reason: body.reason }, session);
+      }
+      if (body.collect_payment) {
+        const result = await completePayment(env, session.access, {
+          idempotency_key: body.idempotency_key || `guest-${current.id}`,
+          table_id: null,
+          items: (current.items || []).map((item) => ({ menu_item_id: item.menu_item_id, qty: item.qty })),
+          payment: body.payment || (current.fulfillment === 'delivery' ? 'Cash' : 'Cash'),
+          payments: body.payments || {},
+          cash_received: Number(body.cash_received || current.total || 0),
+          change_due: Number(body.change_due || 0),
+          order_type: current.fulfillment === 'delivery' ? 'Delivery' : 'Takeaway',
+          order_ref: current.public_ref,
+          guest_count: 1,
+          discount_type: 'percent',
+          discount_value: 0
+        });
+        await rest(env, `/rest/v1/guest_orders?id=eq.${encodeURIComponent(current.id)}`, {
+          method: 'PATCH',
+          prefer: 'return=minimal',
+          body: { payment_status: 'paid', sale_id: result.bill?.id || null, status: 'completed', updated_at: new Date().toISOString() }
+        });
+        return applySession(json({ ok: true, bill: result.bill }), request, session);
+      }
+      return applySession(json({ order: staffGuestOrder(current) }), request, session);
     }
     if (path === '/api/ops/payments' && request.method === 'POST') {
       const result = await completePayment(env, session.access, await readJson(request));
@@ -232,12 +329,35 @@ async function handleAdmin(request, env, path) {
   if (path === '/api/admin/config' && request.method === 'POST') return json({ ok: true });
   if (path === '/api/admin/orders' && request.method === 'GET') {
     const rows = await rest(env, '/rest/v1/live_orders?select=*,order_items(menu_item_id,qty,served_qty)');
-    const orders = {};
-    for (const row of rows || []) {
-      const payload = await orderPayload(env, row.table_id, auth.session.access);
-      orders[row.table_id] = { version: payload.version, order: payload.order, attention: payload.attention, updated_by: row.updated_by_name, updated_at: row.updated_at };
+    const orders = collectOrders(rows);
+    return json({ orders, completions: [], guest_orders: (await listGuestOrders(env).catch(() => [])).map(staffGuestOrder) });
+  }
+  if (path === '/api/admin/reset/preview' && request.method === 'GET') {
+    return json(await previewOperationalReset(env));
+  }
+  if (path === '/api/admin/reset/dashboard' && request.method === 'POST') {
+    const body = await readJson(request, 64 * 1024);
+    return json({ ok: true, ...(await saveDashboardBaseline(env, body.baseline ?? null)) });
+  }
+  if (path === '/api/admin/reset/operational' && request.method === 'POST') {
+    try {
+      const body = await readJson(request, 256 * 1024);
+      const result = await runOperationalReset(env, { password: body.password, phrase: body.phrase, actor: auth.session.profile });
+      return json(result, result.verified ? 200 : 409);
+    } catch (error) {
+      return json({ error: error.message || 'Reset failed', verified: false, result: error.result || null }, error.status || 500);
     }
-    return json({ orders, completions: [] });
+  }
+  if (path === '/api/admin/storefront' && request.method === 'GET') {
+    const row = await loadMasterData(env);
+    return json({ storefront: publicBusiness(row?.data || {}).storefront, revision: Number(row?.revision || 0) });
+  }
+  if (path === '/api/admin/storefront' && request.method === 'POST') {
+    try {
+      return json({ ok: true, ...(await saveStorefront(env, (await readJson(request, 256 * 1024)).storefront || {})) });
+    } catch (error) {
+      return json({ error: error.message || 'Could not save website settings' }, error.status || 500);
+    }
   }
   const legacyOrder = path.match(/^\/api\/admin\/orders\/([^/]+)$/);
   if (legacyOrder && request.method === 'PUT') {
@@ -264,6 +384,13 @@ async function handleServer(request, env, path) {
   if (auth.error) return json({ error: auth.error }, auth.status);
   if (path === '/api/server/workspace' && request.method === 'GET') {
     return applySession(json(await workspaceForServer(env, auth.session.access, auth.session.profile)), request, auth.session);
+  }
+  if (path === '/api/server/guest-orders' && request.method === 'GET') {
+    return json({ orders: (await listGuestOrders(env).catch(() => [])).map(staffGuestOrder) });
+  }
+  const qrMatch = path.match(/^\/api\/server\/payment-qr\/([^/]+)$/);
+  if (qrMatch && request.method === 'GET') {
+    return json({ method: decodeURIComponent(qrMatch[1]), image: await loadPaymentQr(env, decodeURIComponent(qrMatch[1])) });
   }
   const orderMatch = path.match(/^\/api\/server\/orders\/([^/]+)$/);
   if (orderMatch && request.method === 'GET') return json(await orderPayload(env, decodeURIComponent(orderMatch[1]), auth.session.access));
@@ -313,22 +440,61 @@ export async function handle(request, env) {
       if (path === '/api/network' && request.method === 'GET') {
         return json({ staff_urls: [new URL('/server', request.url).href], port: url.port || (url.protocol === 'https:' ? 443 : 80) });
       }
+      if (path === '/api/public/cafe' && request.method === 'GET') {
+        const row = await loadMasterData(env);
+        return json({ cafe: publicBusiness(row?.data || {}) });
+      }
+      if (path === '/api/public/menu' && request.method === 'GET') {
+        const [row, menu] = await Promise.all([loadMasterData(env), loadPublicMenu(env)]);
+        return json({ cafe: publicBusiness(row?.data || {}), menu });
+      }
+      if (path === '/api/public/orders' && request.method === 'POST') {
+        try {
+          const result = await placeGuestOrder(env, await readJson(request, 256 * 1024), request);
+          return json({ ok: true, order: publicGuestOrder(result) }, 201);
+        } catch (error) {
+          return json({ error: error.message || 'Could not place the order', code: error.code || 'error', item: error.item || null }, error.status || 500);
+        }
+      }
+      const publicOrder = path.match(/^\/api\/public\/orders\/([^/]+)$/);
+      if (publicOrder && request.method === 'GET') {
+        const row = await guestOrderByToken(env, decodeURIComponent(publicOrder[1]));
+        if (!row) return json({ error: 'Order not found' }, 404);
+        return json({ order: publicGuestOrder(row) });
+      }
 
       if (path.startsWith('/api/ops/')) return handleOps(request, env, path);
       if (path.startsWith('/api/admin/')) return handleAdmin(request, env, path);
       if (path.startsWith('/api/server/')) return handleServer(request, env, path);
-      if (path.startsWith('/api/staff/')) return json({ error: 'Staff PIN login has been retired. Sign in at the TEA AMO home page.' }, 410);
+      if (path.startsWith('/api/staff/')) return json({ error: 'Staff PIN login has been retired. Sign in at /staff/login.' }, 410);
 
-      if (path === '/' || path === '/index.html') {
+      if (path === '/staff/login' || path === '/login') {
         const session = await establish(request, env);
         if (session?.profile?.active) return redirect(homeFor(session.profile.role));
         return serveAsset(env, request, '/auth/gate.html');
       }
       if (path === '/admin') return guardedPage(request, env, 'admin', async () => text(await ownerPage(env, request)));
-      if (path === '/server') return guardedPage(request, env, 'server_staff', async () => serveAsset(env, request, '/server/index.html'));
+      if (path === '/server') {
+        const session = await establish(request, env);
+        if (!session || session.inactive) return redirect(STAFF_LOGIN, session?.inactive ? logoutCookies(request) : []);
+        if (session.profile.role !== 'server_staff') return redirect(homeFor(session.profile.role));
+        return applySession(await serverPage(env, request, session), request, session);
+      }
       if (path === '/staff' || path === '/staff.html') return redirect('/server');
+      if (path === '/index.html') return publicPage(env, request, PUBLIC_PAGES['/'], '/');
+      if (path === '/sitemap.xml') {
+        const origin = new URL(request.url).origin;
+        const urls = Object.keys(PUBLIC_PAGES).map((route) => `<url><loc>${origin}${route === '/' ? '/' : route}</loc></url>`).join('');
+        return text(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`, 200, 'application/xml; charset=utf-8');
+      }
+      if (path === '/robots.txt') {
+        return text(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /server\nDisallow: /staff/login\nDisallow: /api/\nSitemap: ${new URL('/sitemap.xml', request.url).href}\n`, 200, 'text/plain; charset=utf-8');
+      }
       if (path === '/favicon.ico') return serveAsset(env, request, '/assets/favicon.ico');
       if (path === '/tea-amo-floor-plan.png') return serveAsset(env, request, '/assets/tea-amo-floor-plan.png');
+      if (PUBLIC_PAGES[path]) return publicPage(env, request, PUBLIC_PAGES[path], path);
+      const menuItem = path.match(/^\/menu\/([^/]+)$/);
+      if (menuItem) return publicPage(env, request, { page: 'item', title: 'Menu item — TEA AMO' }, path);
       return text('Not found', 404, 'text/plain; charset=utf-8');
     } catch (error) {
       console.error(JSON.stringify({ message: error.message, status: error.status || 500 }));

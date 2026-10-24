@@ -8,8 +8,12 @@ export function json(data, status = 200, extra = {}) {
 export function text(body, status = 200, type = 'text/html; charset=utf-8', extra = {}) {
   const headers = new Headers(extra);
   headers.set('Content-Type', type);
-  headers.set('Cache-Control', 'no-store');
+  if (!headers.has('Cache-Control')) headers.set('Cache-Control', 'no-store');
   return new Response(body, { status, headers });
+}
+
+export function html(body, extra = {}) {
+  return text(body, 200, 'text/html; charset=utf-8', extra);
 }
 
 export function redirect(location, cookies = []) {

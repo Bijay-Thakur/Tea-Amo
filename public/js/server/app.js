@@ -38,7 +38,7 @@ async function api(path, opt = {}) {
   try { data = await response.json(); } catch { data = {}; }
   if (response.status === 401) {
     setNet(false);
-    location.assign('/');
+    location.assign('/staff/login');
     throw new Error('Authentication expired');
   }
   if (!response.ok) {
@@ -122,8 +122,10 @@ function renderTables() {
   }).join('') || '<div class="sv-empty">No tables in this view.</div>';
 }
 
-async function loadWorkspace() {
-  cfg = await api('/api/server/workspace');
+function applyWorkspace(data) {
+  cfg = data;
+  cfg.business = cfg.business || {};
+  cfg.business.payment_qr = cfg.business.payment_qr || {};
   $('business').textContent = (cfg.business?.name || 'TEA AMO') + (cfg.business?.branch ? ' · ' + cfg.business.branch : '');
   $('who').textContent = cfg.staff?.name || 'Server';
   if ($('profileName')) $('profileName').textContent = cfg.staff?.name || 'Server';
@@ -137,6 +139,13 @@ async function loadWorkspace() {
   renderTables();
   renderMenu();
   renderPay();
+  updateBar();
+  if (cfg.guest_orders) renderOnline(cfg.guest_orders);
+}
+
+async function loadWorkspace() {
+  const data = await api('/api/server/workspace');
+  applyWorkspace(data);
   if (activeTable) {
     const latest = cfg.orders?.[activeTable.id];
     const fresh = cfg.tables.find((table) => String(table.id) === String(activeTable.id));
@@ -144,7 +153,7 @@ async function loadWorkspace() {
     if (latest && !dirty && !saving && !paying && Number(latest.version) !== version) await refreshOrder();
     else if (!dirty && !saving && !paying && !latest && version) await refreshOrder();
   }
-  updateBar();
+  loadOnline().catch(() => {});
 }
 
 function serverPhotoFallback(img) {
@@ -177,9 +186,11 @@ function showView(next) {
   $('orderView').classList.toggle('hidden', next !== 'order');
   $('payView').classList.toggle('hidden', next !== 'pay');
   $('profileView').classList.toggle('hidden', next !== 'profile');
+  $('onlineView')?.classList.toggle('hidden', next !== 'online');
   document.querySelectorAll('[data-tab]').forEach((button) => button.classList.toggle('on', button.dataset.tab === (next === 'pay' ? 'order' : next)));
   updateBar();
   if (next === 'pay') renderPay();
+  if (next === 'online') loadOnline().catch((error) => toast(error.message));
 }
 function updateBar() {
   const count = order.cart.reduce((sum, line) => sum + Number(line.qty || 0), 0);
@@ -467,11 +478,13 @@ function renderPay() {
   $('payment').value = payMethod;
   const cash = String(payMethod).toLowerCase() === 'cash';
   $('cashBox').classList.toggle('hidden', !cash);
-  const qr = cfg.business?.payment_qr?.[payMethod] || '';
-  $('qrBox').classList.toggle('hidden', cash || !qr);
-  if (qr && !cash) {
-    $('payQr').src = qr;
+  const cached = cfg.business?.payment_qr?.[payMethod] || '';
+  $('qrBox').classList.toggle('hidden', cash || !cached);
+  if (cached && !cash) {
+    $('payQr').src = cached;
     $('qrNote').textContent = 'Ask the guest to scan this ' + payMethod + ' QR.';
+  } else if (!cash) {
+    ensurePaymentQr(payMethod);
   }
   updateCashPreview();
   updatePaymentAvailability();
@@ -744,11 +757,70 @@ $('paidReceiptPrint').onclick = () => {
   window.print();
   setTimeout(() => document.body.classList.remove('printing-bill'), 400);
 };
+$('onlineRefresh')?.addEventListener('click', () => loadOnline().then(() => toast('Refreshed')).catch((error) => toast(error.message)));
+$('onlineList')?.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-online]');
+  if (!button) return;
+  try {
+    if (button.dataset.pay) {
+      const paid = await api('/api/ops/guest-orders/' + encodeURIComponent(button.dataset.online), {
+        method: 'PUT',
+        body: JSON.stringify({ collect_payment: true, payment: 'Cash', idempotency_key: crypto.randomUUID() })
+      });
+      toast(paid.bill?.id ? 'Payment recorded ' + paid.bill.id : 'Payment recorded');
+    } else {
+      await api('/api/ops/guest-orders/' + encodeURIComponent(button.dataset.online), {
+        method: 'POST',
+        body: JSON.stringify({ status: button.dataset.next })
+      });
+      toast('Order updated');
+    }
+    await loadOnline();
+  } catch (error) { toast(error.message); }
+});
 $('reloadConfig').onclick = () => { closeMenu(); loadWorkspace().then(() => toast('Refreshed')).catch((error) => toast(error.message)); };
 $('profileRefresh').onclick = () => loadWorkspace().then(() => toast('Refreshed')).catch((error) => toast(error.message));
+async function ensurePaymentQr(method) {
+  if (!method || String(method).toLowerCase() === 'cash') return;
+  if (cfg.business.payment_qr?.[method]) return;
+  try {
+    const data = await api('/api/server/payment-qr/' + encodeURIComponent(method));
+    cfg.business.payment_qr = cfg.business.payment_qr || {};
+    cfg.business.payment_qr[method] = data.image || '';
+    if (payMethod === method) renderPay();
+  } catch {
+    // QR is optional; cash and already-loaded methods still work.
+  }
+}
+
+function renderOnline(rows) {
+  const list = $('onlineList');
+  if (!list) return;
+  const pending = (rows || []).filter((row) => !['completed', 'rejected', 'cancelled', 'failed'].includes(row.status));
+  const badge = $('onlineBadge');
+  if (badge) {
+    badge.textContent = String(pending.length);
+    badge.classList.toggle('hidden', !pending.length);
+  }
+  list.innerHTML = (rows || []).map((row) => {
+    const items = (row.items || []).map((item) => `${esc(item.name)} × ${item.qty}`).join(', ');
+    const contact = row.contact_redacted ? 'Contact redacted' : `${esc(row.customer_name || '')} · ${esc(row.customer_phone || '')}`;
+    const address = row.fulfillment === 'delivery' && row.delivery_address ? `<div class="muted">${esc(row.delivery_address)}${row.landmark ? ' · ' + esc(row.landmark) : ''}</div>` : '';
+    const actions = ['pending', 'accepted', 'preparing', 'ready', 'dispatched', 'awaiting_pickup'].includes(row.status)
+      ? `<div class="sv-actions">${row.status === 'pending' ? `<button type="button" data-online="${esc(row.id)}" data-next="accepted">Accept</button><button type="button" class="sv-ghost" data-online="${esc(row.id)}" data-next="rejected">Reject</button>` : ''}${row.status === 'accepted' ? `<button type="button" data-online="${esc(row.id)}" data-next="preparing">Start preparing</button>` : ''}${row.status === 'preparing' ? `<button type="button" data-online="${esc(row.id)}" data-next="ready">Mark ready</button>` : ''}${row.status === 'ready' && row.fulfillment === 'delivery' ? `<button type="button" data-online="${esc(row.id)}" data-next="dispatched">Out for delivery</button>` : ''}${row.status === 'ready' && row.fulfillment === 'pickup' ? `<button type="button" data-online="${esc(row.id)}" data-next="awaiting_pickup">Ready for pickup</button>` : ''}${['ready', 'dispatched', 'awaiting_pickup'].includes(row.status) ? `<button type="button" data-online="${esc(row.id)}" data-pay="1">Collect payment</button>` : ''}</div>`
+      : '';
+    return `<article class="sv-card"><div class="sv-card-head"><b>${esc(row.public_ref)}</b><span class="muted">${esc(row.status)} · ${esc(row.fulfillment)}</span></div><div>${esc(items)}</div><div class="muted">${contact}</div>${address}<div><b>${money(row.total)}</b> · ${esc(row.payment_status)}</div>${actions}</article>`;
+  }).join('') || '<div class="sv-empty">No website orders yet.</div>';
+}
+
+async function loadOnline() {
+  const data = await api('/api/server/guest-orders');
+  renderOnline(data.orders || []);
+}
+
 async function logout() {
   await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-  location.assign('/');
+  location.assign('/staff/login');
 }
 $('logout').onclick = logout;
 $('profileLogout').onclick = logout;
@@ -812,14 +884,21 @@ window.addEventListener('online', () => setNet(true));
 window.addEventListener('offline', () => setNet(false));
 
 async function boot() {
-  const session = await api('/api/auth/session');
+  let session = window.TEA_AMO_SESSION;
+  if (!session?.access_token) session = await api('/api/auth/session');
   if (session.role !== 'server_staff') {
-    location.assign(session.home || '/');
+    location.assign(session.home || '/staff/login');
     return;
   }
   accessToken = session.access_token || '';
-  await loadWorkspace();
-  showView('tables');
+  if (window.TEA_AMO_WORKSPACE) {
+    applyWorkspace(window.TEA_AMO_WORKSPACE);
+    showView('tables');
+    loadWorkspace().catch(() => {});
+  } else {
+    await loadWorkspace();
+    showView('tables');
+  }
   setInterval(() => api('/api/server/presence', { method: 'POST', body: '{}' }).catch(() => {}), 30000);
   api('/api/server/presence', { method: 'POST', body: '{}' }).catch(() => {});
   let realtime = false;

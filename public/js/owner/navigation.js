@@ -16,7 +16,8 @@
     dailyreport: ['Daily Business Report', 'Select any calendar date to add, review or edit that day’s business.'],
     dining: ['Average Dining Time', 'Track table-wise dining duration and service patterns.'],
     capital: ['Owner Funds & Cash', 'Track owner investments, withdrawals and transfers between accounts.'],
-    settings: ['Settings & Backup', 'Business settings, payments, backup, recovery and reset controls.']
+    settings: ['Settings & Backup', 'Business settings, website, payments, backup, recovery and reset controls.'],
+    online: ['Online Orders', 'Accept, prepare and complete guest orders from the public website.']
   };
 
   const original = window.hardNav;
@@ -75,7 +76,7 @@
         const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
         if (!response.ok) throw new Error(`Logout failed (${response.status})`);
         try { window.localStorage.removeItem('tea-amo-admin'); } catch {}
-        window.location.replace('/');
+        window.location.replace('/staff/login');
       } catch (error) {
         console.error(error);
         button.disabled = false;

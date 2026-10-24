@@ -1,0 +1,22 @@
+<h1>Guest checkout</h1>
+<p class="muted">No account is created. Enter your details again for every new order.</p>
+<div id="checkoutNotice" class="notice hidden"></div>
+<form id="checkoutForm">
+  <fieldset class="card">
+    <legend>How should we fulfill this?</legend>
+    <label><input type="radio" name="fulfillment" value="pickup" checked> Pickup at TEA AMO</label>
+    <label id="deliveryChoice"><input type="radio" name="fulfillment" value="delivery"> Delivery</label>
+    <p class="muted" id="fulfillmentHelp"></p>
+  </fieldset>
+  <label class="field">Full name<input id="customerName" required autocomplete="name" maxlength="80"></label>
+  <label class="field">Phone<input id="customerPhone" required inputmode="tel" autocomplete="tel"></label>
+  <div id="deliveryFields" hidden>
+    <label class="field">Delivery address<input id="deliveryAddress" maxlength="240"></label>
+    <label class="field">Landmark (optional)<input id="landmark" maxlength="120"></label>
+  </div>
+  <label class="field">Order note (optional)<textarea id="instructions" maxlength="280" rows="3"></textarea></label>
+  <div id="checkoutTotals" class="card"></div>
+  <p class="muted">Payment is cash on delivery or pay at pickup. Digital wallets are collected by staff when they fulfill the order, not through this website.</p>
+  <label><input id="acceptTerms" type="checkbox" required> I have read the <a href="/terms">terms</a> and <a href="/delivery-policy">delivery policy</a>.</label>
+  <p><button class="btn wide" id="placeOrder" type="submit">Place order</button></p>
+</form>

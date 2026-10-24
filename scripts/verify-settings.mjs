@@ -22,7 +22,7 @@ for (const id of [
   'backupBtn', 'restoreFile', 'lanSyncStatus', 'lanSyncDetail', 'lanStaffUrl',
   'lanSyncNow', 'lanRefreshNetwork', 'lanCopyStaffUrl', 'lanOpenStaffTest',
   'resetPassword', 'resetAll', 'restoreDashboard', 'fullResetPassword',
-  'fullResetConfirm', 'fullSystemReset',
+  'fullResetConfirm', 'fullSystemReset', 'saveStorefront', 'siteEnabled',
 ]) assert.ok(ids.includes(id), `Missing Settings control ${id}`);
 assert.match(html, /class="settings-layout"/);
 assert.match(css, /\.settings-layout \{ display: grid; grid-template-columns:/);
@@ -80,6 +80,9 @@ assert.equal(paymentRendered, 1);
 assert.equal(modalClosed, 1);
 console.log('PASS payment methods: add action saves, rerenders and closes its dialog');
 
+assert.match(source, /\/api\/admin\/reset\/preview/);
+assert.match(source, /\/api\/admin\/reset\/operational/);
+assert.match(source, /result\.verified/);
 const elements = new Map([
   ['fullResetPassword', { value: 'wrong' }], ['fullResetConfirm', { value: 'RESET TEA AMO' }],
   ['operationalResetModal', { classList: { remove() {} }, id: 'operationalResetModal' }],
@@ -87,24 +90,24 @@ const elements = new Map([
 const originalBusiness = { name: 'TEA AMO', payment_methods: [{ name: 'Cash', kind: 'cash' }], payment_qr: { eSewa: 'qr' } };
 const operationalState = {
   business: originalBusiness, menu: [{ name: 'Tea' }], recipes: [{ name: 'Tea recipe' }],
-  bills: [1], attendance: [1], purchases: [1], waste: [1], expenses: [1],
-  customers: [1], inventoryLog: [1], businessDays: [1], auditLog: [1],
-  ownerCapital: [1], dailyBusinessReports: [1], cart: [1], tableOrders: { 1: [1] },
-  dashboardBaseline: { sales: 10 }, ingredients: [{ stock: 8, avg_cost: 5 }],
-  staff: [{ clockIn: 'now' }], tables: [{ id: 1, attention: true, reservation: 'a' }],
+  bills: [1], ingredients: [{ stock: 8, avg_cost: 5 }], staff: [], tables: [],
 };
-let safetyBackups = 0, persisted = 0;
+let safetyBackups = 0, fetchCalls = 0;
 const reset = vm.createContext({
   $: id => elements.get(id), state: operationalState, verifyOwnerPassword: async password => password === 'valid',
-  confirm: () => true, downloadSafetyBackup: () => { safetyBackups++; },
-  rebuildIndex() {}, deleteLanOrder: async () => {}, persistNow: async () => { persisted++; return true; },
-  renderActive() {}, updateTop() {}, setActionStatus() {}, alert() {},
+  confirm: () => true, downloadSafetyBackup: () => { safetyBackups++; return true; },
+  rebuildIndex() {}, renderActive() {}, updateTop() {}, setActionStatus() {}, alert() {},
+  dbPutLocal: async () => true, DB_NAME: 'tea',
+  localStorage: { setItem() {} },
+  fetch: async () => { fetchCalls++; return { ok: true, json: async () => ({ ok: true, verified: true, generation: 2, revision: 9, state: { ...operationalState, bills: [], operationalGeneration: 2 } }) }; },
   activeTableId: 1, lastPaidBill: 1,
 });
 vm.runInContext(part('function closeSettingsModal(', 'function openSettingsModal('), reset);
+vm.runInContext('function repairState(s){return s}', reset);
 vm.runInContext(part('async function completeOperationalReset()', '// ===== END OPERATIONS PATCH ====='), reset);
 await reset.completeOperationalReset();
 assert.equal(safetyBackups, 0, 'Wrong password must block reset');
+assert.equal(fetchCalls, 0, 'API must not run before password and phrase succeed');
 elements.get('fullResetPassword').value = 'valid';
 elements.get('fullResetConfirm').value = 'WRONG';
 await reset.completeOperationalReset();
@@ -112,11 +115,7 @@ assert.equal(safetyBackups, 0, 'Wrong phrase must block reset');
 elements.get('fullResetConfirm').value = 'RESET TEA AMO';
 await reset.completeOperationalReset();
 assert.equal(safetyBackups, 1);
-assert.equal(persisted, 1);
-assert.equal(operationalState.bills.length, 0);
-assert.equal(operationalState.ingredients[0].stock, 0);
+assert.ok(fetchCalls >= 2, 'Verified reset must call preview and execute endpoints');
 assert.equal(operationalState.business, originalBusiness);
-assert.equal(operationalState.business.payment_qr.eSewa, 'qr');
-assert.equal(operationalState.menu.length, 1);
-console.log('PASS operational reset: password and phrase guard, safety backup, configuration preserved');
+console.log('PASS operational reset: password and phrase guard, verified cloud reset, configuration preserved');
 console.log('Settings layout and controls OK');

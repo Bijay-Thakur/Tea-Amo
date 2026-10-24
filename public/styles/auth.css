@@ -4,6 +4,7 @@ body.auth-gate *{box-sizing:border-box}
 .auth-logo{width:84px;height:84px;object-fit:contain}
 .auth-card h1{margin:8px 0 0;letter-spacing:.14em;font-size:28px}
 .auth-lead{margin:18px 0 10px;font-weight:800}
+.auth-note{margin:0 0 12px}.auth-note a{color:#153c35;font-weight:800}
 .auth-roles,.auth-form{display:grid;gap:10px}
 .auth-role,.auth-form button,.auth-back{font:inherit;font-weight:800;min-height:52px;border-radius:16px;border:0;cursor:pointer}
 .auth-role{background:#f3efe6;color:#1c2b26}

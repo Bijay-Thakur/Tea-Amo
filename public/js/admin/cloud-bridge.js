@@ -18,7 +18,7 @@
     let data = {};
     try { data = await response.json(); } catch { data = {}; }
     if (response.status === 401) {
-      window.location.assign('/');
+      window.location.assign('/staff/login');
       throw new Error('Authentication expired');
     }
     if (!response.ok) {
@@ -361,6 +361,6 @@
 
   restoreSession().then(() => window.TEA_AMO_BOOT()).catch((error) => {
     console.error(error);
-    location.assign('/');
+    location.assign('/staff/login');
   });
 })();

@@ -18,6 +18,8 @@
   "routes": [
     { "src": "/", "dest": "/api/index?__path=" },
     { "src": "/index.html", "dest": "/api/index?__path=index.html" },
+    { "src": "/staff/login", "dest": "/api/index?__path=staff/login" },
+    { "src": "/login", "dest": "/api/index?__path=login" },
     { "src": "/admin", "dest": "/api/index?__path=admin" },
     { "src": "/server", "dest": "/api/index?__path=server" },
     { "src": "/staff", "dest": "/api/index?__path=staff" },

@@ -26,6 +26,8 @@ await db.exec(`
 await db.exec(sql);
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261007133000_table_seated.sql', import.meta.url), 'utf8'));
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261014090000_close_paid_table_atomically.sql', import.meta.url), 'utf8'));
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261007170000_menu_images.sql', import.meta.url), 'utf8').replace(/do \$\$[\s\S]+end \$\$;/g, ''));
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261024010000_ops_reset_and_storefront.sql', import.meta.url), 'utf8'));
 
 const admin = '11111111-1111-4111-8111-111111111111';
 const serverA = '22222222-2222-4222-8222-222222222222';
@@ -104,6 +106,21 @@ try {
   blocked = String(error.message).includes('forbidden');
 }
 check('disabled server is rejected', blocked);
+
+await db.query(`insert into public.sales (id, total, bill, result, idempotency_key) values ('S1', 100, '{"id":"S1"}'::jsonb, '{}'::jsonb, 'sale-1')`);
+const preview = await db.query(`select public.reset_operational_preview() as result`);
+check('reset preview sees sales', Number(preview.rows[0].result.sales) >= 1, JSON.stringify(preview.rows[0].result));
+const wiped = await db.query(`select public.reset_operational_data('{"business":{"name":"TEA AMO"},"menu":[],"bills":[]}'::jsonb, 1, '${admin}', 'Owner') as result`);
+check('reset reports verified', wiped.rows[0].result.verified === true, JSON.stringify(wiped.rows[0].result));
+check('sales gone after reset', Number((await db.query('select count(*) as n from public.sales')).rows[0].n) === 0);
+check('generation advanced', Number((await db.query(`select operational_generation from public.business_documents where name = 'master'`)).rows[0].operational_generation) === 2);
+
+const guest = await db.query(`select public.place_guest_order('idem-guest-1', 'pickup', 'pay_at_pickup', 'Bijay', '9800000000', '', '', '', '[{"menu_item_id":"1","name":"Chicken Momo","unit_price":180,"qty":1}]'::jsonb, 180, 0, 0, 180, 'Rs', 2) as result`);
+check('guest order created once', Boolean(guest.rows[0].result.public_ref));
+const guestReplay = await db.query(`select public.place_guest_order('idem-guest-1', 'pickup', 'pay_at_pickup', 'Bijay', '9800000000', '', '', '', '[{"menu_item_id":"1","name":"Chicken Momo","unit_price":180,"qty":1}]'::jsonb, 180, 0, 0, 180, 'Rs', 2) as result`);
+check('guest idempotency', guest.rows[0].result.id === guestReplay.rows[0].result.id);
+const slim = await db.query(`select public.workspace_business_config() as result`);
+check('workspace config omits payment_qr', slim.rows[0].result.payment_qr == null && slim.rows[0].result.name === 'TEA AMO');
 
 if (failures.length) {
   console.error('Failed: ' + failures.join(', '));
