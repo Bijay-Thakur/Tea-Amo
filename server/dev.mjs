@@ -9,7 +9,7 @@ const { appEnv, publicFile, contentType, webRequest, writeWebResponse } = await 
 const port = Number(process.env.PORT || 8788);
 const gated = new Set([
   '/', '/index.html', '/admin', '/server', '/staff', '/staff.html', '/staff/login', '/login',
-  '/menu', '/cart', '/checkout', '/order/confirmation', '/delivery', '/about', '/contact', '/faq',
+  '/menu', '/cart', '/checkout', '/order/confirmation', '/delivery', '/about', '/contact', '/about-contact', '/faq',
   '/privacy-policy', '/terms', '/delivery-policy', '/sitemap.xml', '/robots.txt'
 ]);
 const env = appEnv();

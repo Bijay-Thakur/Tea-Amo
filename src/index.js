@@ -11,26 +11,56 @@ import {
 import { collectOrders } from './slim.js';
 import { previewOperationalReset, runOperationalReset, saveDashboardBaseline } from './reset.js';
 import {
-  guestOrderByToken, listGuestOrders, loadMasterData, loadPublicMenu, placeGuestOrder,
-  publicBusiness, publicGuestOrder, saveStorefront, staffGuestOrder, updateGuestOrder
+  listGuestOrders, loadMasterData, loadPublicMenu, publicBusiness, publicCafeView,
+  saveStorefront, selectFeatured, staffGuestOrder, updateGuestOrder
 } from './storefront.js';
 
 const OWNER_SECTIONS = ['dashboard', 'pos', 'dayclose', 'online', 'staff', 'servers', 'menuadmin', 'inventory', 'recipes', 'wastage', 'vendors', 'expenses', 'capital', 'customers', 'dailyreport', 'reports', 'dining', 'settings'];
 const STAFF_LOGIN = '/staff/login';
 const PUBLIC_PAGES = {
   '/': { page: 'home', title: 'TEA AMO — Café in Gokarna, Kathmandu' },
-  '/menu': { page: 'menu', title: 'Menu — TEA AMO' },
-  '/cart': { page: 'cart', title: 'Cart — TEA AMO' },
-  '/checkout': { page: 'checkout', title: 'Checkout — TEA AMO' },
-  '/order/confirmation': { page: 'confirmation', title: 'Order confirmation — TEA AMO' },
-  '/delivery': { page: 'delivery', title: 'Delivery & pickup — TEA AMO' },
-  '/about': { page: 'about', title: 'About — TEA AMO' },
-  '/contact': { page: 'contact', title: 'Contact — TEA AMO' },
-  '/faq': { page: 'faq', title: 'FAQ — TEA AMO' },
+  '/about-contact': { page: 'about-contact', title: 'About & Contact — TEA AMO' },
   '/privacy-policy': { page: 'privacy', title: 'Privacy policy — TEA AMO' },
-  '/terms': { page: 'terms', title: 'Terms — TEA AMO' },
-  '/delivery-policy': { page: 'delivery-policy', title: 'Delivery, cancellation & refunds — TEA AMO' }
+  '/terms': { page: 'terms', title: 'Terms — TEA AMO' }
 };
+const PUBLIC_CACHE = { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=60' };
+let publicMenuCache = null;
+
+function legacyRedirect(url) {
+  const path = url.pathname;
+  const fixed = {
+    '/about': '/about-contact',
+    '/contact': '/about-contact',
+    '/faq': '/about-contact',
+    '/cart': '/',
+    '/checkout': '/',
+    '/delivery': '/',
+    '/delivery-policy': '/about-contact',
+    '/order/confirmation': '/'
+  };
+  if (fixed[path]) return redirect(fixed[path]);
+  if (path === '/menu') {
+    const cat = url.searchParams.get('cat');
+    return redirect(cat ? `/?cat=${encodeURIComponent(cat)}#menu` : '/#menu');
+  }
+  const item = path.match(/^\/menu\/([^/]+)$/);
+  if (item) return redirect(`/?item=${encodeURIComponent(item[1])}#menu`);
+  return null;
+}
+
+async function publicMenuPayload(env) {
+  const row = await loadMasterData(env);
+  const revision = Number(row?.revision || 0);
+  if (publicMenuCache && publicMenuCache.revision === revision && Date.now() - publicMenuCache.at < 30000) {
+    return publicMenuCache.payload;
+  }
+  const menu = await loadPublicMenu(env);
+  const cafe = publicCafeView(publicBusiness(row?.data || {}));
+  const featured = selectFeatured(menu, cafe.storefront);
+  const payload = { cafe, menu, featured: featured.items, featuredCurated: featured.curated };
+  publicMenuCache = { revision, at: Date.now(), payload };
+  return payload;
+}
 
 function missingConfig() {
   return text(`<!doctype html><html><head><meta charset="utf-8"><title>TEA AMO</title></head><body style="font-family:Nunito,sans-serif;padding:32px"><h1>TEA AMO</h1><p>This deployment does not have Supabase credentials yet. Set SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY, then reload.</p></body></html>`, 503);
@@ -441,26 +471,17 @@ export async function handle(request, env) {
         return json({ staff_urls: [new URL('/server', request.url).href], port: url.port || (url.protocol === 'https:' ? 443 : 80) });
       }
       if (path === '/api/public/cafe' && request.method === 'GET') {
-        const row = await loadMasterData(env);
-        return json({ cafe: publicBusiness(row?.data || {}) });
+        const payload = await publicMenuPayload(env);
+        return json({ cafe: payload.cafe }, 200, PUBLIC_CACHE);
       }
       if (path === '/api/public/menu' && request.method === 'GET') {
-        const [row, menu] = await Promise.all([loadMasterData(env), loadPublicMenu(env)]);
-        return json({ cafe: publicBusiness(row?.data || {}), menu });
+        return json(await publicMenuPayload(env), 200, PUBLIC_CACHE);
       }
       if (path === '/api/public/orders' && request.method === 'POST') {
-        try {
-          const result = await placeGuestOrder(env, await readJson(request, 256 * 1024), request);
-          return json({ ok: true, order: publicGuestOrder(result) }, 201);
-        } catch (error) {
-          return json({ error: error.message || 'Could not place the order', code: error.code || 'error', item: error.item || null }, error.status || 500);
-        }
+        return json({ error: 'Online ordering is not available. Visit TEA AMO to order from the menu.', code: 'ordering_disabled' }, 410);
       }
-      const publicOrder = path.match(/^\/api\/public\/orders\/([^/]+)$/);
-      if (publicOrder && request.method === 'GET') {
-        const row = await guestOrderByToken(env, decodeURIComponent(publicOrder[1]));
-        if (!row) return json({ error: 'Order not found' }, 404);
-        return json({ order: publicGuestOrder(row) });
+      if (/^\/api\/public\/orders\/[^/]+$/.test(path) && request.method === 'GET') {
+        return json({ error: 'Online order tracking is not available. Ask the café about an order placed in person.', code: 'ordering_disabled' }, 410);
       }
 
       if (path.startsWith('/api/ops/')) return handleOps(request, env, path);
@@ -482,6 +503,8 @@ export async function handle(request, env) {
       }
       if (path === '/staff' || path === '/staff.html') return redirect('/server');
       if (path === '/index.html') return publicPage(env, request, PUBLIC_PAGES['/'], '/');
+      const legacy = legacyRedirect(url);
+      if (legacy) return legacy;
       if (path === '/sitemap.xml') {
         const origin = new URL(request.url).origin;
         const urls = Object.keys(PUBLIC_PAGES).map((route) => `<url><loc>${origin}${route === '/' ? '/' : route}</loc></url>`).join('');
@@ -493,8 +516,6 @@ export async function handle(request, env) {
       if (path === '/favicon.ico') return serveAsset(env, request, '/assets/favicon.ico');
       if (path === '/tea-amo-floor-plan.png') return serveAsset(env, request, '/assets/tea-amo-floor-plan.png');
       if (PUBLIC_PAGES[path]) return publicPage(env, request, PUBLIC_PAGES[path], path);
-      const menuItem = path.match(/^\/menu\/([^/]+)$/);
-      if (menuItem) return publicPage(env, request, { page: 'item', title: 'Menu item — TEA AMO' }, path);
       return text('Not found', 404, 'text/plain; charset=utf-8');
     } catch (error) {
       console.error(JSON.stringify({ message: error.message, status: error.status || 500 }));

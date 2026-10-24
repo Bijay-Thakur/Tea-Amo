@@ -1,0 +1,20 @@
+Temporary decorative photographs for the public website.
+These are not photographs of the TEA AMO café, its dining room, or its dishes.
+Replace the files in this folder when the café supplies its own pictures.
+The page looks for these exact names:
+
+- chai-pour.jpg — hero and collage
+- tea-glass.jpg — gallery
+- tea-leaves.jpg — gallery
+
+Sources (Pexels License, https://www.pexels.com/license/):
+
+- chai-pour.jpg — Soumia Photography, “Hand Pouring Tea to Glass”
+  https://www.pexels.com/photo/hand-pouring-tea-to-glass-14668682/
+- tea-glass.jpg — Pexels photo 1417945
+  https://www.pexels.com/photo/1417945/
+- tea-leaves.jpg — Pexels photo 1793035
+  https://www.pexels.com/photo/1793035/
+
+Menu item pictures come only from the image stored on that item in the café menu.
+If an item has no picture, the site draws a line icon. It does not substitute a stock photo of the dish.

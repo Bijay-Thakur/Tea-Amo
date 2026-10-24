@@ -2,7 +2,7 @@
 
 Cafe operating system for Tea Amo. One Vercel address serves both roles. Supabase is the database.
 
-- `/` public café website and guest ordering
+- `/` public café website for browsing the live menu
 - `/staff/login` Staff and Administration sign in
 - `/admin` Administration (the existing owner workspace)
 - `/server` Server, the phone workspace for waiters
@@ -34,7 +34,7 @@ The rest of the café record (menu editing, stock, bills already merged into the
 
 `master-state.json` and `lan-state.json` stay in the repository as the legacy export. Do not delete them. They are not the live store after migration.
 
-Public guest orders use the same `menu_items` catalog as POS. They do not create customer accounts. Staff see them under Online Orders. Complete operational reset now deletes cloud `sales` and related operational rows; success is only reported after post-delete counts are verified.
+The public website reads the same `menu_items` catalog as POS and does not take carts, customer accounts, or new guest orders. Orders already stored, including older guest orders, stay in the database. Staff can still review those records under Online Orders. Complete operational reset now deletes cloud `sales` and related operational rows; success is only reported after post-delete counts are verified.
 
 ## Layout
 

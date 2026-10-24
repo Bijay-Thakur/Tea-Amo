@@ -28,6 +28,7 @@ await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261007133000_tab
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261014090000_close_paid_table_atomically.sql', import.meta.url), 'utf8'));
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261007170000_menu_images.sql', import.meta.url), 'utf8').replace(/do \$\$[\s\S]+end \$\$;/g, ''));
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261024010000_ops_reset_and_storefront.sql', import.meta.url), 'utf8'));
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261024140000_fast_checkout_config.sql', import.meta.url), 'utf8'));
 
 const admin = '11111111-1111-4111-8111-111111111111';
 const serverA = '22222222-2222-4222-8222-222222222222';
@@ -96,7 +97,43 @@ check('paid table seat released in payment transaction', (await db.query(`select
 
 const replay = await asUser(serverA, pay(keyA));
 const salesAfter = await db.query('select id from public.sales');
-check('replay does not create another sale', salesAfter.rows.length === 1 && replay.rows[0].result.bill.id === first.rows[0].result.bill.id);
+check('replay does not create another sale', salesAfter.rows.length === 1 && replay.rows[0].result.bill.id === first.rows[0].result.bill.id && replay.rows[0].result.replayed === true);
+
+const blob = 'q'.repeat(2_200_000);
+const fat = await db.query(`update public.business_documents set data = jsonb_set(jsonb_set(data, '{business,taxRate}', '13'::jsonb), '{business,payment_qr}', to_jsonb($1::text)) where name = 'master' returning octet_length(data::text) as bytes`, [blob]);
+async function elapsed(statement) {
+  const start = performance.now();
+  await db.query(statement);
+  return performance.now() - start;
+}
+const fullReadMs = await elapsed(`select data#>>'{business,taxRate}' as tax from public.business_documents where name = 'master'`);
+const slimReadMs = await elapsed(`select tax_rate from public.cafe_checkout_config where name = 'master'`);
+const configBytes = Number((await db.query(`select octet_length(tax_rate::text) + octet_length(business_days::text) as n from public.cafe_checkout_config where name = 'master'`)).rows[0].n);
+console.log(`checkout read: full document ${fullReadMs.toFixed(1)} ms, config row ${slimReadMs.toFixed(1)} ms, document bytes ${fat.rows[0].bytes}, config bytes ${configBytes}`);
+check('checkout config stays small beside the large document', configBytes < 10000 && Number(fat.rows[0].bytes) > 2000000, `config ${configBytes} bytes, document ${fat.rows[0].bytes} bytes`);
+check('tax rate is projected beside the large document', Number((await db.query(`select tax_rate from public.cafe_checkout_config where name = 'master'`)).rows[0].tax_rate) === 13);
+
+await asUser(serverA, `select public.save_table_order('t6', 0, false, 1, 'percent', 0, now(), 'T6', 'Dine-in', '[{"menu_item_id":"2","qty":2,"served_qty":0}]'::jsonb)`);
+const taxedStarted = performance.now();
+const taxed = await asUser(serverA, `select public.complete_payment('pay-key-tax-001', 't6', 1, '[{"menu_item_id":"2","qty":2}]'::jsonb, 'Cash', '{}'::jsonb, 200, 19.2, false, '', '', null, 'Dine-in', 'T6', 1, 'percent', 0, now(), null, null) as result`);
+console.log(`complete_payment beside a large master document ${(performance.now() - taxedStarted).toFixed(1)} ms`);
+check('tax follows the projected rate', Math.abs(Number(taxed.rows[0].result.bill.tax) - 20.8) < 0.001, String(taxed.rows[0].result.bill.tax));
+check('taxed total is subtotal plus tax', Math.abs(Number(taxed.rows[0].result.bill.total) - 180.8) < 0.001, String(taxed.rows[0].result.bill.total));
+const taxedReplay = await asUser(serverA, `select public.complete_payment('pay-key-tax-001', 't6', 1, '[{"menu_item_id":"2","qty":2}]'::jsonb, 'Cash', '{}'::jsonb, 200, 19.2, false, '', '', null, 'Dine-in', 'T6', 1, 'percent', 0, now(), null, null) as result`);
+check('repeated payment key does not create another sale', taxedReplay.rows[0].result.replayed === true && Number((await db.query('select count(*)::int as n from public.sales')).rows[0].n) === 2);
+
+await asUser(serverA, `select public.save_table_order('t6', 0, false, 1, 'percent', 0, now(), 'T6', 'Dine-in', '[{"menu_item_id":"2","qty":1,"served_qty":0}]'::jsonb)`);
+const dayKey = (await db.query(`select public.business_day_key(now()) as day`)).rows[0].day;
+await db.query(`update public.business_documents set data = jsonb_set(data, '{businessDays}', $1::jsonb) where name = 'master'`, [JSON.stringify([{ key: dayKey, finalized: true, posClosed: false }])]);
+let closedDay = false;
+try {
+  await asUser(serverA, `select public.complete_payment('pay-key-closed-001', 't6', 1, '[{"menu_item_id":"2","qty":1}]'::jsonb, 'eSewa', '{}'::jsonb, 0, 0, false, '', '', null, 'Dine-in', 'T6', 1, 'percent', 0, now(), null, null)`);
+} catch (error) {
+  closedDay = String(error.message).includes('business_day_finalized');
+}
+check('finalized business day is rejected from checkout config', closedDay);
+check('rejected checkout writes no sale', Number((await db.query('select count(*)::int as n from public.sales')).rows[0].n) === 2);
+check('rejected checkout does not deduct inventory', Number((await db.query(`select stock from public.ingredients where key = 'momo-dough'`)).rows[0].stock) === 950);
 
 await db.query(`update public.profiles set active = false where id = '${serverA}'`);
 let blocked = false;

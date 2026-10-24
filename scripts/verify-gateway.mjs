@@ -85,7 +85,20 @@ function check(name, ok) {
 }
 
 const home = await hit('/');
-check('public homepage is served', home.status === 200 && home.text.includes('Explore menu') && home.text.includes('Staff / Admin Login') && !home.text.includes('Create Account') && !home.text.includes('service-role-secret'));
+check('public homepage is served', home.status === 200 && home.text.includes('Explore Menu') && home.text.includes('Staff / Admin Login') && home.text.includes('Chiya that') && !home.text.includes('href="/cart"') && !home.text.includes('Create Account') && !home.text.includes('service-role-secret'));
+
+const cart = await hit('/cart');
+check('old cart redirects home', cart.status === 302 && cart.location === '/');
+const about = await hit('/about');
+check('old about page redirects', about.status === 302 && about.location === '/about-contact');
+const oldItem = await hit('/menu/12');
+check('old menu item redirects into the homepage menu', oldItem.status === 302 && oldItem.location === '/?item=12#menu');
+const aboutPage = await hit('/about-contact');
+check('about and contact page is served', aboutPage.status === 200 && aboutPage.text.includes('About &amp; Contact') && !aboutPage.text.includes('href="/checkout"'));
+const closed = await hit('/api/public/orders', { method: 'POST', body: { fulfillment: 'pickup', customer_name: 'Bijay', customer_phone: '9800000000', items: [{ id: '1', qty: 1 }] } });
+check('public checkout is closed', closed.status === 410 && closed.text.includes('ordering_disabled'));
+const tracked = await hit('/api/public/orders/token');
+check('public order tracking is closed', tracked.status === 410);
 
 const login = await hit('/staff/login');
 check('staff login is served', login.status === 200 && login.text.includes('Administration') && login.text.includes('Back to the café website') && !login.text.includes('service-role-secret'));

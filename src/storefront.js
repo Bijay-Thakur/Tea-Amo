@@ -41,12 +41,16 @@ export function defaultStorefront() {
     deliveryFee: 0,
     prepMinutes: 25,
     deliveryMinutes: 0,
-    hours: '',
+    hours: '7 AM to 9 PM',
     address: 'Gokarna, Kathmandu, Nepal',
-    phone: '',
-    email: '',
+    phone: '9717128778',
+    email: 'teaaamo2024@gmail.com',
     mapUrl: '',
-    social: { facebook: '', instagram: '', tiktok: '' },
+    social: {
+      facebook: 'https://www.facebook.com/share/19rWN7yofK/?mibextid=wwXIfr',
+      instagram: 'https://www.instagram.com/tea.amo2024/',
+      tiktok: ''
+    },
     about: 'TEA AMO is a café in Gokarna, Kathmandu. This website uses the same live menu as the café counter.',
     legalName: 'TEA AMO',
     registration: '',
@@ -59,12 +63,131 @@ export function defaultStorefront() {
     policiesUpdatedAt: '',
     contactRetentionDays: DEFAULT_RETENTION_DAYS,
     heroTag: 'Café in Gokarna, Kathmandu',
-    featuredCategory: ''
+    featuredCategory: '',
+    featuredIds: []
   };
 }
 
+export const STOCK_ABOUT = 'TEA AMO is a café in Gokarna, Kathmandu. This website uses the same live menu as the café counter.';
+export const PUBLIC_INTRO = 'From a comforting cup of chiya to time spent with friends, TEA AMO is a place to slow down and enjoy the little moments.';
+
+export function guestOrderingAvailable() {
+  return false;
+}
+
+export function publicHttpUrl(value) {
+  try {
+    const url = new URL(String(value || '').trim());
+    if (url.protocol === 'https:' || url.protocol === 'http:') return url.href;
+  } catch {
+    return '';
+  }
+  return '';
+}
+
+export function featuredTokens(value) {
+  const list = Array.isArray(value) ? value : String(value || '').split(',');
+  const seen = new Set();
+  const tokens = [];
+  for (const entry of list) {
+    const token = String(entry || '').trim();
+    const key = token.toLowerCase();
+    if (!token || seen.has(key)) continue;
+    seen.add(key);
+    tokens.push(token);
+    if (tokens.length === 8) break;
+  }
+  return tokens;
+}
+
+export function publicIntro(about) {
+  const text = String(about || '').trim();
+  if (!text || text === STOCK_ABOUT) return PUBLIC_INTRO;
+  return text;
+}
+
+export function publicCafeView(cafe = {}) {
+  const site = cafe.storefront || {};
+  const social = site.social || {};
+  return {
+    name: cafe.name || 'TEA AMO',
+    branch: cafe.branch || '',
+    currency: cafe.currency || 'Rs',
+    storefront: {
+      address: site.address || '',
+      phone: site.phone || '',
+      email: site.email || '',
+      hours: site.hours || '',
+      mapUrl: publicHttpUrl(site.mapUrl),
+      social: {
+        facebook: publicHttpUrl(social.facebook),
+        instagram: publicHttpUrl(social.instagram),
+        tiktok: publicHttpUrl(social.tiktok)
+      },
+      about: site.about || '',
+      legalName: site.legalName || '',
+      registration: site.registration || '',
+      pan: site.pan || '',
+      vat: site.vat || '',
+      complaintContact: site.complaintContact || '',
+      heroTag: site.heroTag || '',
+      featuredCategory: site.featuredCategory || '',
+      featuredIds: featuredTokens(site.featuredIds)
+    }
+  };
+}
+
+export function selectFeatured(menu, storefront = {}) {
+  const available = (menu || []).filter((item) => item && item.available !== false);
+  const tokens = featuredTokens(storefront.featuredIds);
+  const explicit = [];
+  for (const token of tokens) {
+    const item = available.find((row) => String(row.id) === token || String(row.name || '').toLowerCase() === token.toLowerCase());
+    if (item && !explicit.some((row) => String(row.id) === String(item.id))) explicit.push(item);
+    if (explicit.length === 4) break;
+  }
+  if (explicit.length) return { items: explicit, curated: true };
+  const category = String(storefront.featuredCategory || '').trim();
+  if (category) {
+    const rows = available.filter((item) => item.category === category).slice(0, 4);
+    if (rows.length) return { items: rows, curated: false };
+  }
+  const quiet = /cigaret|hard drink/i;
+  const preferred = available.filter((item) => !quiet.test(String(item.category || '')));
+  const pool = preferred.length >= 4 ? preferred : available;
+  const rankOf = (category) => {
+    const name = String(category || '');
+    const ranks = [/chiya/i, /coffee/i, /opening|food|snack|kitchen/i, /herbal|flavour|flavor|iced|tea/i, /sheesha/i, /cold|^menu$/i];
+    const index = ranks.findIndex((pattern) => pattern.test(name));
+    return index === -1 ? ranks.length : index;
+  };
+  const groups = new Map();
+  for (const item of pool) {
+    const list = groups.get(item.category) || [];
+    list.push(item);
+    groups.set(item.category, list);
+  }
+  const hasPhoto = (item) => /^https?:\/\//i.test(String(item.image_url || item.image || item.photo || ''));
+  const picks = [...groups.values()].map((items) => [...items].sort((a, b) => Number(hasPhoto(b)) - Number(hasPhoto(a)) || String(a.name).localeCompare(String(b.name)))[0]);
+  picks.sort((a, b) => rankOf(a.category) - rankOf(b.category) || String(a.category).localeCompare(String(b.category)) || String(a.name).localeCompare(String(b.name)));
+  return { items: picks.slice(0, 4), curated: false };
+}
+
+function blank(value) {
+  return !String(value ?? '').trim();
+}
+
 export function mergeStorefront(raw) {
-  return { ...defaultStorefront(), ...(raw && typeof raw === 'object' ? raw : {}) };
+  const base = defaultStorefront();
+  const merged = { ...base, ...(raw && typeof raw === 'object' ? raw : {}) };
+  const social = { ...base.social, ...(merged.social && typeof merged.social === 'object' ? merged.social : {}) };
+  if (blank(merged.hours)) merged.hours = base.hours;
+  if (blank(merged.phone)) merged.phone = base.phone;
+  if (blank(merged.email)) merged.email = base.email;
+  if (!publicHttpUrl(social.facebook)) social.facebook = base.social.facebook;
+  if (!publicHttpUrl(social.instagram)) social.instagram = base.social.instagram;
+  merged.social = social;
+  return merged;
 }
 
 export async function loadMasterData(env) {

@@ -12,7 +12,7 @@
 <!--BOOT-->
 <link rel="stylesheet" href="/styles/staff.css">
 <link rel="stylesheet" href="/styles/clay-staff.css">
-<link rel="stylesheet" href="/styles/server.css?v=20261024-photos">
+<link rel="stylesheet" href="/styles/server.css?v=20261024-tabs">
 <link rel="stylesheet" href="/styles/floor3d.css?v=20261014-3d">
 <script type="importmap">{"imports":{"three":"/vendor/three/three.module.js","three/addons/":"/vendor/three/addons/"}}</script>
 </head>
@@ -150,10 +150,9 @@
     <button type="button" id="barCheckout">Checkout</button>
   </div>
   <nav class="sv-tabs" aria-label="Server">
-    <button type="button" data-tab="tables" class="on">Tables</button>
-    <button type="button" data-tab="order" id="tabOrder">Current Order <span id="tabBadge" class="sv-badge hidden">0</span></button>
-    <button type="button" data-tab="online" id="tabOnline">Online <span id="onlineBadge" class="sv-badge hidden">0</span></button>
-    <button type="button" data-tab="profile">Profile</button>
+    <button type="button" data-tab="tables" class="on" aria-label="Tables"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+    <button type="button" data-tab="order" id="tabOrder" aria-label="Current order"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M7 3.5h10a1 1 0 0 1 1 1V20l-2-1.15L14 20l-2-1.15L10 20l-2-1.15L6 20V4.5a1 1 0 0 1 1-1z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M9.5 8h5M9.5 12h5M9.5 16h3"/></svg><span id="tabBadge" class="sv-badge hidden">0</span></button>
+    <button type="button" data-tab="profile" aria-label="Profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.1" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M5.6 19.2c1.1-2.9 3.3-4.3 6.4-4.3s5.3 1.4 6.4 4.3"/></svg></button>
   </nav>
 </div>
 

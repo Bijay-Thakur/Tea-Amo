@@ -1,4 +1,4 @@
-let cfg = null, activeTable = null, version = 0, dirty = false, order = blankOrder(), accessToken = '', saving = false, savePromise = null, editRevision = 0, servedEdits = new Map(), otherEdits = false, paying = false, attention = false, payMethod = 'Cash', tableFilter = 'all', view = 'tables', saveTimer = 0, toastTimer = 0;
+let cfg = null, activeTable = null, version = 0, dirty = false, order = blankOrder(), accessToken = '', saving = false, savePromise = null, editRevision = 0, servedEdits = new Map(), otherEdits = false, paying = false, paymentAttemptKey = '', attention = false, payMethod = 'Cash', tableFilter = 'all', view = 'tables', saveTimer = 0, toastTimer = 0;
 const $ = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 
@@ -513,28 +513,37 @@ async function takePayment() {
   const button = $('completePay');
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
-  button.innerHTML = '<span class="sv-spinner" aria-hidden="true"></span> Saving bill…';
-  const key = crypto.randomUUID();
+  button.innerHTML = '<span class="sv-spinner" aria-hidden="true"></span> Completing payment…';
+  if (!paymentAttemptKey) paymentAttemptKey = crypto.randomUUID();
+  const key = paymentAttemptKey;
   try {
     await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+    const started = performance.now();
     const saved = await saveOrder();
     if (!saved) { resetPayButton(); return; }
     status('Saving payment and bill…');
-    const data = await api('/api/ops/payments', {
-      method: 'POST',
-      body: JSON.stringify({
-        idempotency_key: key,
-        table_id: activeTable.id,
-        expected_version: version,
-        items: order.cart.map((line) => ({ menu_item_id: String(line.id), qty: Number(line.qty) })),
-        payment: payMethod,
-        payments: { [payMethod]: calc().total },
-        cash_received: cash.cash_received,
-        change_due: cash.change_due
-      })
-    });
+    const body = {
+      idempotency_key: key,
+      table_id: activeTable.id,
+      expected_version: version,
+      items: order.cart.map((line) => ({ menu_item_id: String(line.id), qty: Number(line.qty) })),
+      payment: payMethod,
+      payments: { [payMethod]: calc().total },
+      cash_received: cash.cash_received,
+      change_due: cash.change_due
+    };
+    const send = () => api('/api/ops/payments', { method: 'POST', body: JSON.stringify(body) });
+    let data;
+    try {
+      data = await send();
+    } catch (error) {
+      if (error.status) throw error;
+      data = await send();
+    }
     if (!data.bill?.id) throw new Error('Payment was not confirmed.');
-    status('Payment completed', 'good');
+    paymentAttemptKey = '';
+    console.info('checkout confirmed', { ms: Math.round(performance.now() - started), replayed: !!data.replayed, bill: data.bill.id });
+    status(data.replayed ? 'Payment was already recorded' : 'Payment completed', 'good');
     markPaid();
     showPaidReceipt(data.bill);
     dirty = false;
@@ -546,8 +555,15 @@ async function takePayment() {
     if ($('cashReceived')) $('cashReceived').value = '';
     loadWorkspace().catch(() => setNet(false));
   } catch (error) {
-    status(error.status === 409 ? 'This order changed on another device. Updating…' : error.message, 'bad');
-    toast(error.status === 409 ? 'This order changed on another device. Updating…' : 'Payment failed. ' + error.message);
+    if (error.status && error.status < 500) paymentAttemptKey = '';
+    const dropped = !error.status;
+    const message = error.status === 409
+      ? 'This order changed on another device. Updating…'
+      : dropped
+        ? 'The connection dropped. Press Complete Payment again to confirm it. This payment will not be recorded twice.'
+        : error.message;
+    status(message, 'bad');
+    toast(error.status === 409 ? message : 'Payment failed. ' + message);
     resetPayButton();
     if (error.status === 409) setTimeout(() => refreshOrder().catch(() => {}), 0);
   } finally {

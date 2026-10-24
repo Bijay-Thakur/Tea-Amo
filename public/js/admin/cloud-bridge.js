@@ -252,20 +252,24 @@
   }
 
   const localComplete = completeSelection;
+  let checkoutAttemptKey = '';
   completeSelection = async function (selection, paymentInfo, opts = {}) {
     if (paymentKeys.get('busy')) throw new Error('A payment is already being confirmed.');
     paymentKeys.set('busy', true);
     $('paymentProgress')?.classList.remove('hidden');
     const table = activeTableId && activeTableId !== 'counter' ? tableById(activeTableId) : null;
-    const key = crypto.randomUUID();
+    if (!checkoutAttemptKey) checkoutAttemptKey = crypto.randomUUID();
+    const key = checkoutAttemptKey;
     let confirmedBill = null;
     try {
       await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
-      if (table) await flushTableOrder(table.id);
+      if (table) {
+        const flushKey = String(table.id);
+        const syncedVersion = Number(state.tableOrders[table.id]?._lan_version || 0);
+        if (pendingOrders.has(flushKey) || lanPushTimers[table.id] || syncedVersion <= 0) await flushTableOrder(table.id);
+      }
       const order = typeof currentOrderMeta === 'function' ? currentOrderMeta() : null;
-      const result = await cloudFetch('/api/ops/payments', {
-        method: 'POST',
-        body: JSON.stringify({
+      const body = {
           idempotency_key: key,
           table_id: table ? table.id : null,
           expected_version: table ? Number(order?._lan_version || 0) : null,
@@ -286,10 +290,18 @@
           opened_at: order?.openedAt || null,
           business_day: businessDayKey(),
           time: workingNowIso()
-        })
-      });
+      };
+      const send = () => cloudFetch('/api/ops/payments', { method: 'POST', body: JSON.stringify(body) });
+      let result;
+      try {
+        result = await send();
+      } catch (error) {
+        if (error.status) throw error;
+        result = await send();
+      }
       const bill = result.bill;
       if (!bill?.id) throw new Error('Payment was not confirmed.');
+      checkoutAttemptKey = '';
       confirmedBill = bill;
       lastPaidBill = bill;
       $('paymentProgress')?.classList.add('hidden');
@@ -346,11 +358,14 @@
       return bill;
     } catch (error) {
       if (confirmedBill) {
+        checkoutAttemptKey = '';
         console.error('Payment succeeded; local display refresh failed', error);
         refreshOrders().catch(() => {});
         return confirmedBill;
       }
+      if (error.status && error.status < 500) checkoutAttemptKey = '';
       if (error.status === 409) await refreshOrders().catch(() => {});
+      if (!error.status) throw new Error('The connection dropped. Press Complete Payment again to confirm it. This payment will not be recorded twice.');
       throw error;
     } finally {
       $('paymentProgress')?.classList.add('hidden');

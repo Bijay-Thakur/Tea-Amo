@@ -17,7 +17,7 @@
     dining: ['Average Dining Time', 'Track table-wise dining duration and service patterns.'],
     capital: ['Owner Funds & Cash', 'Track owner investments, withdrawals and transfers between accounts.'],
     settings: ['Settings & Backup', 'Business settings, website, payments, backup, recovery and reset controls.'],
-    online: ['Online Orders', 'Accept, prepare and complete guest orders from the public website.']
+    online: ['Online Orders', 'Review guest orders already received. The public website no longer accepts new online orders.']
   };
 
   const original = window.hardNav;

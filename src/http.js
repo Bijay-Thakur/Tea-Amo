@@ -1,7 +1,7 @@
 export function json(data, status = 200, extra = {}) {
   const headers = new Headers(extra);
   headers.set('Content-Type', 'application/json; charset=utf-8');
-  headers.set('Cache-Control', 'no-store');
+  if (!headers.has('Cache-Control')) headers.set('Cache-Control', 'no-store');
   return new Response(JSON.stringify(data), { status, headers });
 }
 

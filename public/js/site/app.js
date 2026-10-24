@@ -1,48 +1,49 @@
-const CART_KEY = 'tea_amo_public_cart';
 const $ = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+const STOCK_ABOUT = 'TEA AMO is a café in Gokarna, Kathmandu. This website uses the same live menu as the café counter.';
+const PUBLIC_INTRO = 'From a comforting cup of chiya to time spent with friends, TEA AMO is a place to slow down and enjoy the little moments.';
 
-function loadCart() {
-  try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'); } catch { return []; }
+const ICONS = {
+  tea: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M16 26h26v12a11 11 0 0 1-11 11h-4a11 11 0 0 1-11-11V26z"/><path d="M42 30h6a6 6 0 0 1 0 12h-6"/><path d="M24 16c0 4 4 4 4 8M33 14c0 4 4 4 4 8"/></svg>',
+  coffee: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 26h24v14a12 12 0 0 1-24 0V26z"/><path d="M42 30h5a7 7 0 0 1 0 14h-5"/><path d="M24 16c1 4 5 4 4 8M32 14c1 4 5 4 4 8"/></svg>',
+  plate: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 34h36"/><path d="M18 34c1 10 7 16 14 16s13-6 14-16"/><path d="M32 22v8M24 24c2 3 4 4 8 4s6-1 8-4"/></svg>',
+  cold: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M24 16h16l-2 34a8 8 0 0 1-12 0L24 16z"/><path d="M24 24h16M28 20h.1M36 28h.1"/></svg>',
+  sheesha: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M26 44h12v6H26z"/><path d="M32 44V28"/><path d="M24 28h16l-2-8H26z"/><path d="M38 18c6 2 10 6 10 12"/></svg>',
+  glass: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M22 14h20l-2 24a10 10 0 0 1-16 0L22 14z"/><path d="M32 38v10M24 48h16"/></svg>',
+  pack: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M22 16h20v34H22z"/><path d="M22 26h20M30 16v-4h4"/></svg>'
+};
+
+function iconKind(category) {
+  const name = String(category || '').toLowerCase();
+  if (/sheesha/.test(name)) return 'sheesha';
+  if (/coffee/.test(name)) return 'coffee';
+  if (/cigaret/.test(name)) return 'pack';
+  if (/hard drink|beer|alcohol/.test(name)) return 'glass';
+  if (/iced|cold|lassi|drink/.test(name)) return 'cold';
+  if (/chiya|tea|herbal|flavour|flavor/.test(name)) return 'tea';
+  return 'plate';
 }
-function saveCart(items) {
-  localStorage.setItem(CART_KEY, JSON.stringify(items.filter((item) => Number(item.qty) > 0)));
-  renderNavCount();
+
+function intro(about) {
+  const text = String(about || '').trim();
+  if (!text || text === STOCK_ABOUT) return PUBLIC_INTRO;
+  return text;
 }
-function renderNavCount() {
-  const count = loadCart().reduce((sum, item) => sum + Number(item.qty || 0), 0);
-  const el = $('navCartCount');
-  if (el) el.textContent = count ? `(${count})` : '';
-}
+
 function money(cafe, value) {
-  return `${cafe?.currency || 'Rs'} ${Number(value || 0).toLocaleString('en-NP', { maximumFractionDigits: 2 })}`;
-}
-function quote(cafe, items, fulfillment) {
-  const subtotal = items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
-  const tax = subtotal * Number(cafe?.taxRate || 0) / 100;
-  const delivery = fulfillment === 'delivery' ? Math.max(0, Number(cafe?.storefront?.deliveryFee || 0)) : 0;
-  return { subtotal, tax, delivery, total: subtotal + tax + delivery };
+  const amount = Number(value || 0);
+  const digits = Number.isInteger(amount) ? 0 : 2;
+  const currency = cafe?.currency;
+  const label = !currency || currency === 'Rs' || currency === 'NPR' ? 'NPR' : currency;
+  return `${label} ${amount.toLocaleString('en-NP', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 }
 
-async function api(path, opt = {}) {
-  const response = await fetch(path, { cache: 'no-store', headers: { 'Content-Type': 'application/json', ...(opt.headers || {}) }, ...opt });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(data.error || 'Request failed');
-    error.data = data;
-    throw error;
-  }
-  return data;
-}
-
-async function loadMenu() {
-  if (window.__teaPublicMenu) return window.__teaPublicMenu;
-  window.__teaPublicMenu = api('/api/public/menu');
-  return window.__teaPublicMenu;
-}
-
-function itemHref(item) {
-  return '/menu/' + encodeURIComponent(item.id);
+function httpUrl(value) {
+  try {
+    const url = new URL(String(value || '').trim());
+    if (url.protocol === 'https:' || url.protocol === 'http:') return url.href;
+  } catch { /* unpublished or invalid */ }
+  return '';
 }
 
 function photoUrl(item) {
@@ -51,236 +52,250 @@ function photoUrl(item) {
 }
 
 window.teaPhotoFallback = function (img) {
-  const parent = img?.parentNode;
-  const mark = img?.dataset?.mark || '';
-  img?.remove();
-  if (parent && !parent.querySelector('img')) parent.textContent = mark;
+  const parent = img?.parentElement;
+  if (!parent) return;
+  parent.innerHTML = `<div class="ph">${ICONS[img.dataset.kind] || ICONS.tea}</div>`;
 };
 
-function photoMarkup(item, className = 'photo', id = '') {
+function visualMarkup(item) {
+  const kind = iconKind(item.category);
   const url = photoUrl(item);
-  const mark = esc((item?.name || 'T').slice(0, 1));
-  const idAttr = id ? ` id="${esc(id)}"` : '';
-  if (!url) return `<div class="${className}"${idAttr} aria-hidden="true">${mark}</div>`;
-  return `<div class="${className}"${idAttr}><img src="${esc(url)}" alt="${esc(item.name || '')}" data-mark="${mark}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="window.teaPhotoFallback(this)"></div>`;
+  if (!url) return `<div class="visual"><div class="ph">${ICONS[kind]}</div></div>`;
+  return `<div class="visual"><img src="${esc(url)}" alt="" data-kind="${esc(kind)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="window.teaPhotoFallback(this)"></div>`;
 }
 
-function itemCard(cafe, item) {
-  return `<a class="card ${item.available === false ? 'unavailable' : ''}" href="${itemHref(item)}">${photoMarkup(item)}<b>${esc(item.name)}</b><span class="muted">${esc(item.category)}</span><div class="price">${money(cafe, item.price)}</div></a>`;
-}
-
-function addToCart(item, qty = 1) {
-  const cart = loadCart();
-  const line = cart.find((row) => String(row.id) === String(item.id));
-  if (line) line.qty = Number(line.qty || 0) + qty;
-  else cart.push({ id: item.id, name: item.name, price: item.price, qty });
-  saveCart(cart);
+async function api(path) {
+  const response = await fetch(path, { headers: { Accept: 'application/json' } });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'The menu could not be loaded.');
+  return data;
 }
 
 function markNav() {
   const path = document.body.dataset.path || location.pathname;
   document.querySelectorAll('.site-nav a').forEach((link) => {
-    const href = link.getAttribute('href');
-    if (href && (href === path || (href === '/menu' && path.startsWith('/menu/')))) link.setAttribute('aria-current', 'page');
+    const key = link.dataset.nav;
+    const current = (key === 'home' && path === '/') || (key === 'about' && path === '/about-contact');
+    if (current) link.setAttribute('aria-current', 'page');
   });
 }
 
-function fillCafe(cafe) {
-  const site = cafe.storefront || {};
-  const set = (id, value) => { if ($(id) && value) $(id).textContent = value; };
-  set('footerAddress', site.address || cafe.branch || 'Gokarna, Kathmandu, Nepal');
+function bindHeader() {
+  const header = $('siteHeader');
+  const toggle = $('navToggle');
+  const nav = $('siteNav');
+  const onScroll = () => header?.classList.toggle('stuck', window.scrollY > 8);
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
+  const setOpen = (open) => {
+    nav?.classList.toggle('open', open);
+    toggle?.setAttribute('aria-expanded', String(open));
+    const label = toggle?.querySelector('.sr');
+    if (label) label.textContent = open ? 'Close navigation' : 'Open navigation';
+  };
+  toggle?.addEventListener('click', () => setOpen(!nav.classList.contains('open')));
+  nav?.addEventListener('click', (event) => { if (event.target.closest('a')) setOpen(false); });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setOpen(false); });
+  document.addEventListener('click', (event) => {
+    if (!nav?.classList.contains('open')) return;
+    if (event.target.closest('#siteNav, #navToggle')) return;
+    setOpen(false);
+  });
+}
+
+const CONTACT_ICONS = {
+  phone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M8 4h2l1.2 3.2-1.6 1.2a12 12 0 0 0 5 5l1.2-1.6L19 13v2a2 2 0 0 1-2.2 2A14 14 0 0 1 5 7.2 2 2 0 0 1 7 5"/></svg>',
+  email: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" d="M4 7l8 6 8-6"/></svg>',
+  Facebook: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14.2 8.5h2.3V6h-2.3c-2 0-3.5 1.4-3.5 3.5V12H8.5v2.5h2.2V20h2.6v-5.5h2.2l.3-2.5h-2.5V9.6c0-.6.4-1.1 1-1.1z"/></svg>',
+  Instagram: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3.4" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="16.6" cy="7.4" r=".9" fill="currentColor"/></svg>'
+};
+
+function iconLink(href, label, icon, external) {
+  const extra = external ? ' target="_blank" rel="noopener noreferrer"' : '';
+  return `<a class="icon-btn" href="${esc(href)}" aria-label="${esc(label)}"${extra}>${icon}</a>`;
+}
+
+function contactIcons(site) {
+  const links = [];
+  const phone = String(site?.phone || '').trim();
+  const email = String(site?.email || '').trim();
+  const facebook = httpUrl(site?.social?.facebook);
+  const instagram = httpUrl(site?.social?.instagram);
+  if (phone) links.push(iconLink(`tel:${phone.replace(/[^\d+]/g, '')}`, `Call TEA AMO, ${phone}`, CONTACT_ICONS.phone, false));
+  if (email.includes('@')) links.push(iconLink(`mailto:${email}`, `Email TEA AMO at ${email}`, CONTACT_ICONS.email, false));
+  if (facebook) links.push(iconLink(facebook, 'TEA AMO on Facebook', CONTACT_ICONS.Facebook, true));
+  if (instagram) {
+    const handle = /instagram\.com\/tea\.amo2024/i.test(instagram) ? ', @tea.amo2024' : '';
+    links.push(iconLink(instagram, `TEA AMO on Instagram${handle}`, CONTACT_ICONS.Instagram, true));
+  }
+  return links.join('');
+}
+
+function applyCafe(cafe) {
+  const site = cafe?.storefront || {};
+  const address = site.address || 'Gokarna, Kathmandu, Nepal';
+  const hours = String(site.hours || '').trim();
+  const hoursText = hours || 'Opening hours have not been published yet.';
+  const set = (id, value) => { const el = $(id); if (el && value != null) el.textContent = value; };
+  set('footerAddress', address);
+  set('footerHours', hoursText);
+  set('visitAddress', address);
+  set('visitHours', hoursText);
   set('homeTag', site.heroTag || 'Café in Gokarna, Kathmandu');
-  set('homeAbout', site.about || '');
-  set('homeHours', site.hours ? `Hours: ${site.hours}` : 'Opening hours will be published here when the owner enters them.');
-  set('homeAddress', site.address || 'Gokarna, Kathmandu, Nepal');
-  set('aboutCopy', site.about || $('aboutCopy')?.textContent);
-  set('contactAddress', site.address || 'Gokarna, Kathmandu, Nepal');
-  set('contactPhone', site.phone ? `Phone: ${site.phone}` : 'Phone will appear here when published in Settings.');
-  set('contactEmail', site.email ? `Email: ${site.email}` : '');
-  set('contactHours', site.hours ? `Hours: ${site.hours}` : '');
-  if ($('contactMap') && site.mapUrl) $('contactMap').innerHTML = `<a href="${esc(site.mapUrl)}">Directions</a>`;
-  if ($('deliveryCopy')) {
-    $('deliveryCopy').textContent = site.deliveryEnabled
-      ? `Delivery is available. Fee ${money(cafe, site.deliveryFee || 0)}${site.minOrder ? `, minimum ${money(cafe, site.minOrder)}` : ''}.`
-      : 'Delivery is not enabled right now. Please choose pickup or visit the café.';
+  const copy = intro(site.about);
+  set('homeAbout', copy);
+  set('aboutLede', copy);
+  set('aboutCopy', copy);
+  const legal = [];
+  if (site.legalName && site.legalName !== 'TEA AMO') legal.push(site.legalName);
+  if (site.registration) legal.push(site.registration);
+  if (site.pan) legal.push(`PAN ${site.pan}`);
+  if (site.vat) legal.push(`VAT ${site.vat}`);
+  const legalEl = $('visitLegal');
+  if (legalEl) legalEl.textContent = legal.join(' · ');
+  const icons = contactIcons(site);
+  for (const id of ['footerSocial', 'contactActions', 'visitActions']) {
+    const host = $(id);
+    if (host) host.innerHTML = icons;
+  }
+  const actions = $('contactActions');
+  if (actions && site.complaintContact && site.complaintContact !== site.phone && site.complaintContact !== site.email) {
+    actions.insertAdjacentHTML('beforeend', `<p class="quiet contact-note">Complaints: ${esc(site.complaintContact)}</p>`);
   }
 }
 
-function renderHome(cafe, menu) {
-  fillCafe(cafe);
-  const featured = menu.filter((item) => item.category === (cafe.storefront?.featuredCategory || menu[0]?.category)).slice(0, 6);
-  if ($('homeFeatured')) $('homeFeatured').innerHTML = featured.map((item) => itemCard(cafe, item)).join('');
-  const cats = [...new Set(menu.map((item) => item.category))];
-  if ($('homeCategories')) {
-    $('homeCategories').innerHTML = cats.map((cat) => {
-      const cover = menu.find((item) => item.category === cat && photoUrl(item)) || { name: cat };
-      return `<a class="card" href="/menu?cat=${encodeURIComponent(cat)}">${photoMarkup(cover)}<b>${esc(cat)}</b></a>`;
-    }).join('');
+function detailExtras(cafe, item) {
+  const blocks = [];
+  if (Array.isArray(item.variants) && item.variants.length) {
+    const rows = item.variants.map((variant) => {
+      if (typeof variant === 'string') return esc(variant);
+      const name = esc(variant?.name || variant?.label || '');
+      if (!name) return '';
+      const price = variant?.price == null ? '' : ` · ${esc(money(cafe, variant.price))}`;
+      return name + price;
+    }).filter(Boolean);
+    if (rows.length) blocks.push(`<h3>Options</h3><ul>${rows.map((row) => `<li>${row}</li>`).join('')}</ul>`);
   }
+  const notes = [].concat(item.dietary || [], item.allergens || []).filter((note) => typeof note === 'string' && note.trim());
+  if (notes.length) blocks.push(`<h3>Notes from the café</h3><ul>${notes.map((note) => `<li>${esc(note)}</li>`).join('')}</ul>`);
+  return blocks.join('');
 }
 
-function renderMenuPage(cafe, menu) {
+function renderHome(data) {
+  const cafe = data.cafe || {};
+  const menu = Array.isArray(data.menu) ? data.menu : [];
+  const featured = Array.isArray(data.featured) ? data.featured : menu.slice(0, 4);
+  applyCafe(cafe);
+  const note = $('favoritesNote');
+  if (note) note.textContent = data.featuredCurated ? 'Selected by the café.' : 'A little taste of what TEA AMO has to offer.';
+  const categories = [...new Set(menu.map((item) => item.category).filter(Boolean))];
+  const featuredHost = $('homeFeatured');
+  if (featuredHost) {
+    featuredHost.innerHTML = featured.length
+      ? featured.map((item) => `<button type="button" class="fav-card" data-item="${esc(item.id)}">${visualMarkup(item)}<span class="name">${esc(item.name)}</span><span class="price">${esc(money(cafe, item.price))}</span></button>`).join('')
+      : '<p class="empty">No menu items are published right now.</p>';
+  }
+  const strip = $('categoryStrip');
+  if (strip) {
+    strip.innerHTML = categories.map((category) => `<button type="button" class="cat-btn" data-cat="${esc(category)}"><span class="mark">${ICONS[iconKind(category)]}</span><span>${esc(category)}</span></button>`).join('');
+  }
+  const chips = $('menuChips');
+  if (chips) {
+    chips.innerHTML = `<button type="button" class="chip" data-cat="">All</button>` + categories.map((category) => `<button type="button" class="chip" data-cat="${esc(category)}">${esc(category)}</button>`).join('');
+  }
+  const catSelect = $('menuCatSelect');
+  if (catSelect) {
+    catSelect.innerHTML = `<option value="">All categories</option>` + categories.map((category) => `<option value="${esc(category)}">${esc(category)}</option>`).join('');
+  }
+
   const params = new URLSearchParams(location.search);
   let category = params.get('cat') || '';
+  if (category && !categories.includes(category)) category = '';
   const search = $('menuSearch');
+  const grid = $('menuGrid');
   const paint = () => {
     const query = (search?.value || '').trim().toLowerCase();
-    const rows = menu.filter((item) => (!category || item.category === category) && (!query || item.name.toLowerCase().includes(query)));
-    $('menuGrid').innerHTML = rows.map((item) => itemCard(cafe, item)).join('') || '<div class="empty">No items match.</div>';
-    document.querySelectorAll('#menuChips button').forEach((button) => button.classList.toggle('on', (button.dataset.cat || '') === category));
-  };
-  $('menuChips').innerHTML = `<button type="button" class="${category ? '' : 'on'}" data-cat="">All</button>` + [...new Set(menu.map((item) => item.category))].map((cat) => `<button type="button" data-cat="${esc(cat)}">${esc(cat)}</button>`).join('');
-  $('menuChips').onclick = (event) => {
-    const chip = event.target.closest('[data-cat]');
-    if (!chip) return;
-    category = chip.dataset.cat || '';
-    paint();
-  };
-  if (search) search.oninput = paint;
-  paint();
-}
-
-function renderItem(cafe, menu) {
-  const id = decodeURIComponent(location.pathname.split('/').pop() || '');
-  const item = menu.find((row) => String(row.id) === String(id));
-  if (!item) {
-    $('itemName').textContent = 'Item not found';
-    return;
-  }
-  document.title = `${item.name} — TEA AMO`;
-  $('itemName').textContent = item.name;
-  $('itemCategory').textContent = item.category;
-  $('itemDesc').textContent = item.description || 'Prepared at TEA AMO. Ask staff if you need allergen details.';
-  $('itemPrice').textContent = money(cafe, item.price);
-  const photo = $('itemPhoto');
-  if (photo) photo.outerHTML = photoMarkup(item, 'photo', 'itemPhoto');
-  let qty = 1;
-  const sync = () => { $('itemQty').textContent = String(qty); };
-  $('itemMinus').onclick = () => { qty = Math.max(1, qty - 1); sync(); };
-  $('itemPlus').onclick = () => { qty += 1; sync(); };
-  $('itemAdd').onclick = () => { addToCart(item, qty); $('itemStatus').textContent = 'Added to cart.'; };
-}
-
-function renderCart(cafe) {
-  const items = loadCart();
-  if (!items.length) {
-    $('cartLines').innerHTML = '<div class="empty">Your cart is empty.</div>';
-    $('cartTotals').innerHTML = '';
-    return;
-  }
-  $('cartLines').innerHTML = items.map((item) => `<div class="cart-line"><div><b>${esc(item.name)}</b><div class="muted">${money(cafe, item.price)}</div></div><div class="qty"><button type="button" data-id="${esc(item.id)}" data-d="-1">−</button><b>${item.qty}</b><button type="button" data-id="${esc(item.id)}" data-d="1">+</button></div><button type="button" data-id="${esc(item.id)}" data-d="0">Remove</button></div>`).join('');
-  const totals = quote(cafe, items, 'pickup');
-  $('cartTotals').innerHTML = `<div class="srow"><span>Subtotal</span><b>${money(cafe, totals.subtotal)}</b></div><div class="srow"><span>Tax</span><b>${money(cafe, totals.tax)}</b></div><div class="srow"><span>Estimated total</span><b>${money(cafe, totals.total)}</b></div><p class="muted">Delivery fee, if any, is added at checkout.</p>`;
-  $('cartLines').onclick = (event) => {
-    const button = event.target.closest('[data-id]');
-    if (!button) return;
-    const next = loadCart().map((item) => String(item.id) === String(button.dataset.id) ? { ...item, qty: button.dataset.d === '0' ? 0 : Number(item.qty) + Number(button.dataset.d) } : item);
-    saveCart(next);
-    renderCart(cafe);
-  };
-}
-
-function renderCheckout(cafe, menu) {
-  const site = cafe.storefront || {};
-  if (!loadCart().length) {
-    $('checkoutNotice').classList.remove('hidden');
-    $('checkoutNotice').textContent = 'Your cart is empty. Add items from the menu before placing an order.';
-    $('placeOrder').disabled = true;
-  }
-  if (!site.enabled || site.orderingPaused) {
-    $('checkoutNotice').classList.remove('hidden');
-    $('checkoutNotice').textContent = 'Online ordering is paused.';
-    $('placeOrder').disabled = true;
-  }
-  if (!site.deliveryEnabled) {
-    $('deliveryChoice')?.setAttribute('hidden', '');
-    $('fulfillmentHelp').textContent = 'Pickup is available. Delivery is not enabled by the café right now.';
-  } else {
-    $('fulfillmentHelp').textContent = `Delivery fee ${money(cafe, site.deliveryFee || 0)}${site.minOrder ? `, minimum ${money(cafe, site.minOrder)}` : ''}.`;
-  }
-  const form = $('checkoutForm');
-  const paint = () => {
-    const fulfillment = form.fulfillment.value;
-    $('deliveryFields').hidden = fulfillment !== 'delivery';
-    $('deliveryAddress').required = fulfillment === 'delivery';
-    const totals = quote(cafe, loadCart(), fulfillment);
-    $('checkoutTotals').innerHTML = `<div>Subtotal ${money(cafe, totals.subtotal)}</div><div>Tax ${money(cafe, totals.tax)}</div><div>Delivery ${money(cafe, totals.delivery)}</div><b>Total ${money(cafe, totals.total)}</b>`;
-  };
-  form.onchange = paint;
-  paint();
-  form.onsubmit = async (event) => {
-    event.preventDefault();
-    const button = $('placeOrder');
-    button.disabled = true;
-    $('checkoutNotice').classList.add('hidden');
-    try {
-      const fulfillment = form.fulfillment.value;
-      const items = loadCart().map((item) => ({ id: item.id, qty: item.qty, price: item.price, name: item.name }));
-      if (!items.length) throw new Error('Your cart is empty.');
-      const result = await api('/api/public/orders', {
-        method: 'POST',
-        body: JSON.stringify({
-          idempotency_key: crypto.randomUUID(),
-          fulfillment,
-          customer_name: $('customerName').value,
-          customer_phone: $('customerPhone').value,
-          delivery_address: $('deliveryAddress').value,
-          landmark: $('landmark').value,
-          instructions: $('instructions').value,
-          items
-        })
-      });
-      saveCart([]);
-      sessionStorage.setItem('tea_amo_last_order_token', result.order.access_token);
-      location.assign('/order/confirmation?token=' + encodeURIComponent(result.order.access_token));
-    } catch (error) {
-      $('checkoutNotice').classList.remove('hidden');
-      $('checkoutNotice').className = 'notice bad';
-      $('checkoutNotice').textContent = error.message;
-      button.disabled = false;
+    const rows = menu.filter((item) => (!category || item.category === category) && (!query || `${item.name} ${item.description || ''}`.toLowerCase().includes(query)));
+    if (grid) {
+      grid.innerHTML = rows.map((item) => `<button type="button" class="item-card ${item.available === false ? 'unavailable' : ''}" data-item="${esc(item.id)}">${visualMarkup(item)}<span class="copy"><span class="item-name">${esc(item.name)}</span><span class="price">${esc(money(cafe, item.price))}</span>${item.description ? `<p>${esc(item.description)}</p>` : ''}${item.available === false ? '<span class="status">Not available right now</span>' : ''}</span></button>`).join('')
+        || '<p class="empty">No items match.</p>';
     }
+    const count = $('menuCount');
+    if (count) count.textContent = menu.length ? `${rows.length} ${rows.length === 1 ? 'item' : 'items'}` : '';
+    if (catSelect) catSelect.value = category;
+    document.querySelectorAll('#menuChips .chip, #categoryStrip .cat-btn').forEach((button) => {
+      const value = button.dataset.cat || '';
+      const pressed = button.classList.contains('chip') ? value === category : category !== '' && value === category;
+      button.setAttribute('aria-pressed', String(pressed));
+    });
   };
+  const chooseCategory = (next, scroll) => {
+    category = next || '';
+    paint();
+    if (scroll) $('menuBrowser')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  };
+  chips?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-cat]');
+    if (!button) return;
+    chooseCategory(button.dataset.cat || '', false);
+  });
+  document.getElementById('categoryStrip')?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-cat]');
+    if (button) chooseCategory(button.dataset.cat || '', true);
+  });
+  catSelect?.addEventListener('change', () => chooseCategory(catSelect.value, false));
+  if (search) search.addEventListener('input', paint);
+  paint();
+
+  const dialog = $('itemDialog');
+  const findItem = (id) => menu.find((item) => String(item.id) === String(id));
+  const openItem = (item, push) => {
+    if (!dialog || !item) return;
+    const url = photoUrl(item);
+    const kind = iconKind(item.category);
+    const photo = url
+      ? `<img src="${esc(url)}" alt="${esc(item.name)}" data-kind="${esc(kind)}" decoding="async" referrerpolicy="no-referrer" onerror="window.teaPhotoFallback(this)">`
+      : `<div class="ph">${ICONS[kind]}</div>`;
+    $('dialogBody').innerHTML = `<div class="dialog-photo">${photo}</div><div class="dialog-copy"><div class="dialog-top"><div><p class="eyebrow">${esc(item.category || 'Menu')}</p><h2 id="dialogName">${esc(item.name)}</h2></div><button type="button" class="dialog-close" id="dialogClose">Close</button></div><p>${esc(item.description || 'The café has not published a description for this item.')}</p><p class="price">${esc(money(cafe, item.price))}</p><p>${item.available === false ? 'Not available right now.' : 'Available on the current menu.'}</p>${detailExtras(cafe, item)}</div>`;
+    $('dialogClose')?.addEventListener('click', () => dialog.close());
+    if (!dialog.open) dialog.showModal();
+    if (push) history.pushState({ item: String(item.id) }, '', `#item-${encodeURIComponent(item.id)}`);
+  };
+  document.querySelector('.site-main')?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-item]');
+    if (!button) return;
+    openItem(findItem(button.dataset.item), true);
+  });
+  dialog?.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+  dialog?.addEventListener('close', () => {
+    if (location.hash.startsWith('#item-')) history.replaceState(null, '', location.pathname + location.search);
+  });
+  window.addEventListener('popstate', () => {
+    const id = itemIdFromHash();
+    if (!id) { if (dialog?.open) dialog.close(); return; }
+    const item = findItem(id);
+    if (item) openItem(item, false);
+  });
+  const initial = params.get('item') || itemIdFromHash();
+  if (initial) openItem(findItem(initial), false);
 }
 
-async function renderConfirmation() {
-  const token = new URLSearchParams(location.search).get('token') || sessionStorage.getItem('tea_amo_last_order_token');
-  if (!token) {
-    $('confirmBox').textContent = 'No confirmation token was found. If you just ordered, keep the reference from the café staff.';
-    return;
-  }
-  try {
-    const data = await api('/api/public/orders/' + encodeURIComponent(token));
-    const order = data.order;
-    $('confirmBox').innerHTML = `<p>Order <b>${esc(order.public_ref)}</b> is <b>${esc(order.status)}</b>.</p><p>${esc(order.fulfillment)} · ${money({ currency: order.currency }, order.total)}</p><p class="muted">Staff still have to accept this order. It is not marked paid until they collect payment.</p>`;
-  } catch {
-    $('confirmBox').textContent = 'This confirmation link is not valid.';
-  }
+function itemIdFromHash() {
+  if (!location.hash.startsWith('#item-')) return '';
+  try { return decodeURIComponent(location.hash.slice(6)); } catch { return ''; }
 }
-
-$('navToggle')?.addEventListener('click', () => {
-  const nav = $('siteNav');
-  const open = nav.classList.toggle('open');
-  $('navToggle').setAttribute('aria-expanded', String(open));
-});
 
 markNav();
-renderNavCount();
-
+bindHeader();
 const path = document.body.dataset.path || location.pathname;
-if (['/', '/menu', '/cart', '/checkout', '/delivery', '/about', '/contact'].includes(path) || path.startsWith('/menu/')) {
-  loadMenu().then(({ cafe, menu }) => {
-    fillCafe(cafe);
-    if (path === '/') renderHome(cafe, menu);
-    if (path === '/menu') renderMenuPage(cafe, menu);
-    if (path.startsWith('/menu/') && path !== '/menu') renderItem(cafe, menu);
-    if (path === '/cart') renderCart(cafe);
-    if (path === '/checkout') renderCheckout(cafe, menu);
+if (path === '/' || path === '/about-contact') {
+  api(path === '/' ? '/api/public/menu' : '/api/public/cafe').then((data) => {
+    if (path === '/') renderHome(data);
+    else applyCafe(data.cafe);
   }).catch((error) => {
-    const main = document.querySelector('.site-wrap');
-    if (main) main.insertAdjacentHTML('afterbegin', `<div class="notice bad">${esc(error.message)}</div>`);
+    const host = document.querySelector('.site-main');
+    host?.insertAdjacentHTML('afterbegin', `<div class="wrap"><p class="notice">${esc(error.message)}</p></div>`);
   });
-}
-if (path === '/order/confirmation') renderConfirmation();
-if (path === '/delivery' || path === '/about' || path === '/contact') {
-  api('/api/public/cafe').then(({ cafe }) => fillCafe(cafe)).catch(() => {});
+} else {
+  api('/api/public/cafe').then((data) => applyCafe(data.cafe)).catch(() => {});
 }

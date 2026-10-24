@@ -1230,6 +1230,7 @@ function fillStorefrontSettings(){
   set('sitePan',s.pan);set('siteVat',s.vat);set('siteRegistration',s.registration);
   set('siteComplaint',s.complaintContact);set('siteMap',s.mapUrl);
   set('siteFacebook',s.social?.facebook);set('siteInstagram',s.social?.instagram);
+  set('siteFeatured',Array.isArray(s.featuredIds)?s.featuredIds.join(', '):(s.featuredIds||''));
   if($('siteAbout'))$('siteAbout').value=s.about||'';
   set('siteDeliveryFee',s.deliveryFee||0);set('siteMinOrder',s.minOrder||0);set('sitePrepMinutes',s.prepMinutes||25);
   check('siteEnabled',s.enabled!==false);check('sitePickup',s.pickupEnabled!==false);check('siteDelivery',!!s.deliveryEnabled);check('sitePaused',!!s.orderingPaused)
@@ -1560,6 +1561,7 @@ async function init(){
       mapUrl:$('siteMap')?.value.trim()||'',
       social:{facebook:$('siteFacebook')?.value.trim()||'',instagram:$('siteInstagram')?.value.trim()||''},
       about:$('siteAbout')?.value.trim()||'',
+      featuredIds:$('siteFeatured')?String($('siteFeatured').value||'').split(',').map(item=>item.trim()).filter(Boolean):(state.storefront?.featuredIds||[]),
       deliveryFee:Number($('siteDeliveryFee')?.value||0),
       minOrder:Number($('siteMinOrder')?.value||0),
       prepMinutes:Number($('sitePrepMinutes')?.value||25),
@@ -1574,7 +1576,7 @@ async function init(){
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data.error||'Could not save website settings');
       if(data.revision)window.__teaRevision=data.revision;
-      setActionStatus('Website and online-ordering settings saved.','good');
+      setActionStatus('Website settings saved.','good');
     }catch(error){alert(error.message)}
   };
   $('changePass').onclick=async()=>{if($('newPass').value!==$('confirmPass').value)return alert('New passwords do not match.');if(!await verifyOwnerPassword($('oldPass').value))return alert('Incorrect current password.');if($('newPass').value.length<8)return alert('Use at least 8 characters.');await setOwnerPassword($('newPass').value);$('oldPass').value=$('newPass').value=$('confirmPass').value='';if(!await persistNow('password_changed'))return alert('Password changed in memory but could not be saved. Try again before closing the app.');audit('owner_password_changed','PBKDF2 credential updated');alert('Password changed securely.')};
