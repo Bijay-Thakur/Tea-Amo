@@ -1,5 +1,6 @@
 import { rest, rpc, authAdmin } from './supabase.js';
 import { collectOrders, loadPaymentQr, loadWorkspaceBusiness, menuImageUrl } from './slim.js';
+import { listGuestOrders } from './storefront.js';
 
 const PRESENCE_MS = 90 * 1000;
 const SERVER_EMAIL_DOMAIN = 'servers.teaamo.local';
@@ -27,6 +28,9 @@ export function rpcStatus(error) {
   if (message.includes('unknown_menu_item')) return { status: 400, error: 'That menu item is not available' };
   if (message.includes('unknown_table')) return { status: 404, error: 'Unknown table' };
   if (message.includes('empty_payment')) return { status: 400, error: 'Add at least one item' };
+  if (message.includes('reset_not_verified')) return { status: 409, error: 'Reset did not finish and was rolled back. No operational data was changed.', code: 'reset_not_verified' };
+  if (message.includes('guest_order_closed')) return { status: 409, error: 'This order can no longer be paid', code: 'closed' };
+  if (message.includes('payment_mismatch')) return { status: 409, error: 'The payment split does not match the total', code: 'payment_mismatch' };
   return { status: error.status || 500, error: message || 'Request failed' };
 }
 
@@ -107,6 +111,8 @@ export function projectState(document, operational) {
     if (!row) continue;
     ingredient.stock = Number(row.stock);
     ingredient.avg_cost = Number(row.avg_cost);
+    ingredient.stockServer = ingredient.stock;
+    ingredient.avgCostServer = ingredient.avg_cost;
   }
   const tableById = new Map((operational.tables || []).map((table) => [table.id, table]));
   for (const table of state.tables || []) {
@@ -135,33 +141,49 @@ function recipeRows(recipes) {
   return rows;
 }
 
-function deductMissingSales(state, sales) {
-  const have = new Set((state.bills || []).map((bill) => bill.id));
-  const missing = sales.filter((sale) => sale.bill && !have.has(sale.bill.id || sale.id));
-  const ingredients = new Map((state.ingredients || []).map((row) => [row.key, row]));
-  for (const sale of missing) {
+export function mergeMissingBills(state, sales) {
+  state.bills = Array.isArray(state.bills) ? state.bills : [];
+  const have = new Set(state.bills.map((bill) => bill.id));
+  let added = 0;
+  for (const sale of sales || []) {
+    const id = sale.bill?.id || sale.id;
+    if (!sale.bill || have.has(id)) continue;
     state.bills.unshift(sale.bill);
-    for (const item of sale.bill.items || []) {
-      const lines = state.recipes?.[item.name] || [];
-      for (const line of lines) {
-        const ingredient = ingredients.get(line.ingredient_key);
-        if (!ingredient) continue;
-        const used = Number(line.qty || 0) * Number(item.qty || 0);
-        ingredient.stock = Number(ingredient.stock || 0) - used;
-        state.inventoryLog = state.inventoryLog || [];
-        state.inventoryLog.unshift({
-          id: `sale-${sale.bill.id}-${line.ingredient_key}`,
-          time: sale.bill.time,
-          ingredient_key: line.ingredient_key,
-          qty_delta: -used,
-          reason: 'sale',
-          ref: sale.bill.id,
-          note: item.name
-        });
-      }
-    }
+    have.add(id);
+    added += 1;
   }
-  return missing.length;
+  return added;
+}
+
+export function applyAuthoritativeStock(ingredients, sqlRows) {
+  const sql = new Map((sqlRows || []).map((row) => [row.key, row]));
+  let preserved = 0;
+  let adjusted = 0;
+  for (const item of ingredients || []) {
+    const row = sql.get(item.key);
+    if (!row) {
+      item.stockServer = Number(item.stock || 0);
+      item.avgCostServer = Number(item.avg_cost || 0);
+      continue;
+    }
+    const sqlStock = Number(row.stock);
+    const sqlCost = Number(row.avg_cost);
+    if (Number.isFinite(Number(item.stockServer))) {
+      const delta = Number(item.stock || 0) - Number(item.stockServer);
+      item.stock = sqlStock + delta;
+      if (delta !== 0) adjusted += 1;
+      else preserved += 1;
+    } else {
+      item.stock = sqlStock;
+      preserved += 1;
+    }
+    if (!(Number.isFinite(Number(item.avgCostServer)) && Number(item.avg_cost) !== Number(item.avgCostServer))) {
+      item.avg_cost = sqlCost;
+    }
+    item.stockServer = Number(item.stock);
+    item.avgCostServer = Number(item.avg_cost);
+  }
+  return { preserved, adjusted };
 }
 
 export async function saveMaster(env, incoming, expectedRevision) {
@@ -188,7 +210,8 @@ export async function saveMaster(env, incoming, expectedRevision) {
   }
   incoming.operationalGeneration = Math.max(Number(incoming.operationalGeneration || 1), generation);
   const operational = await loadOperational(env);
-  deductMissingSales(incoming, operational.sales);
+  mergeMissingBills(incoming, operational.sales);
+  applyAuthoritativeStock(incoming.ingredients, operational.stocks);
   stripStaffSecrets(incoming);
   incoming.tableOrders = {};
   for (const order of operational.orders) incoming.tableOrders[order.table_id] = clientOrder(order);
@@ -289,8 +312,7 @@ export async function syncCatalog(env, state) {
   await upsert(env, 'cafe_tables', tables, 'id');
   await upsert(env, 'ingredients', ingredients, 'key');
   await upsert(env, 'staff', staff, 'id');
-  await rest(env, '/rest/v1/recipes?menu_name=not.is.null', { method: 'DELETE', prefer: 'return=minimal' });
-  await upsert(env, 'recipes', recipeRows(state.recipes), 'menu_name,ingredient_key');
+  await rpc(env, 'replace_recipes', { p_rows: recipeRows(state.recipes) });
 }
 
 async function loadServerMenu(env) {
@@ -309,7 +331,7 @@ export async function workspaceForServer(env, token, profile) {
     rest(env, '/rest/v1/cafe_tables?active=eq.true&select=id,name,seats,x,y,w,h,kind,attention,reservation,seated&order=name.asc', { token }),
     rest(env, '/rest/v1/live_orders?select=table_id,version,attention,guest_count,discount_type,discount_value,opened_at,order_ref,order_type,updated_by_name,updated_at,order_items(menu_item_id,qty,served_qty)', { token }),
     loadWorkspaceBusiness(env),
-    rest(env, '/rest/v1/guest_orders?select=id,public_ref,status,fulfillment,payment_method,payment_status,customer_name,customer_phone,delivery_address,landmark,instructions,items,subtotal,tax,delivery_fee,total,currency,created_at,updated_at,contact_redacted_at,sale_id,accepted_by_name&order=created_at.desc&limit=80').catch(() => [])
+    listGuestOrders(env).catch(() => [])
   ]);
   return {
     staff: { id: profile.staff_id, name: profile.display_name, role: 'server_staff' },
@@ -365,6 +387,16 @@ function cartItems(order) {
 export async function saveOrder(env, token, tableId, body) {
   const result = await rpc(env, 'save_table_order', orderArgs(tableId, body), token);
   return result;
+}
+
+export async function completeGuestPayment(env, token, orderId, body) {
+  return rpc(env, 'complete_guest_payment', {
+    p_order_id: orderId,
+    p_payment: body.payment || 'Cash',
+    p_payments: body.payments && typeof body.payments === 'object' ? body.payments : {},
+    p_cash_received: Number(body.cash_received || 0),
+    p_change_due: Number(body.change_due || 0)
+  }, token);
 }
 
 export async function completePayment(env, token, body) {

@@ -3,7 +3,7 @@ import { configured, uploadMenuImageObject, deleteMenuImageObject } from './supa
 import { establish, applySession, homeFor, loginResponse, logoutResponse, requireRole } from './session.js';
 import { passwordGrant, rest, rpc } from './supabase.js';
 import {
-  assertLoginAllowed, clearLoginFailures, completePayment, createServerAccount, findLogin,
+  assertLoginAllowed, clearLoginFailures, completeGuestPayment, completePayment, createServerAccount, findLogin,
   listServers, loadOperational, loadPaymentQr, markLogin, orderPayload, projectState,
   publicProfile, recordLoginFailure, resetServerPassword, rpcStatus, saveMaster, saveOrder,
   reserveTable, seatTable, setServerActive, setTableAttention, updateServer, workspaceForServer
@@ -11,7 +11,7 @@ import {
 import { collectOrders } from './slim.js';
 import { previewOperationalReset, runOperationalReset, saveDashboardBaseline } from './reset.js';
 import {
-  listGuestOrders, loadMasterData, loadPublicMenu, publicBusiness, publicCafeView,
+  guestOrderById, listGuestOrders, loadMasterData, loadPublicMenu, publicBusiness, publicCafeView,
   saveStorefront, selectFeatured, staffGuestOrder, updateGuestOrder
 } from './storefront.js';
 
@@ -270,32 +270,20 @@ async function handleOps(request, env, path) {
     }
     if (guestMatch && request.method === 'PUT') {
       const body = await readJson(request);
-      const current = (await listGuestOrders(env).catch(() => [])).find((row) => row.id === decodeURIComponent(guestMatch[1]));
+      const orderId = decodeURIComponent(guestMatch[1]);
+      const current = await guestOrderById(env, orderId);
       if (!current) return json({ error: 'Order not found' }, 404);
-      if (body.status && body.status !== current.status) {
+      if (body.status && body.status !== current.status && !body.collect_payment) {
         await updateGuestOrder(env, current.id, { status: body.status, reason: body.reason }, session);
       }
       if (body.collect_payment) {
-        const result = await completePayment(env, session.access, {
-          idempotency_key: body.idempotency_key || `guest-${current.id}`,
-          table_id: null,
-          items: (current.items || []).map((item) => ({ menu_item_id: item.menu_item_id, qty: item.qty })),
-          payment: body.payment || (current.fulfillment === 'delivery' ? 'Cash' : 'Cash'),
+        const result = await completeGuestPayment(env, session.access, current.id, {
+          payment: body.payment || 'Cash',
           payments: body.payments || {},
           cash_received: Number(body.cash_received || current.total || 0),
-          change_due: Number(body.change_due || 0),
-          order_type: current.fulfillment === 'delivery' ? 'Delivery' : 'Takeaway',
-          order_ref: current.public_ref,
-          guest_count: 1,
-          discount_type: 'percent',
-          discount_value: 0
+          change_due: Number(body.change_due || 0)
         });
-        await rest(env, `/rest/v1/guest_orders?id=eq.${encodeURIComponent(current.id)}`, {
-          method: 'PATCH',
-          prefer: 'return=minimal',
-          body: { payment_status: 'paid', sale_id: result.bill?.id || null, status: 'completed', updated_at: new Date().toISOString() }
-        });
-        return applySession(json({ ok: true, bill: result.bill }), request, session);
+        return applySession(json({ ok: true, bill: result.bill, replayed: result.replayed === true }), request, session);
       }
       return applySession(json({ order: staffGuestOrder(current) }), request, session);
     }

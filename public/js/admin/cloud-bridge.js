@@ -4,6 +4,7 @@
   let accessToken = '';
   let refreshTimer = null;
   let pushChain = Promise.resolve();
+  let orderSyncGeneration = 0;
   const paymentKeys = new Map();
   const pendingOrders = new Set();
   const orderEdits = new Map();
@@ -94,7 +95,9 @@
   }
 
   async function refreshOrders() {
+    const started = orderSyncGeneration;
     const data = await cloudFetch('/api/ops/orders');
+    if (started !== orderSyncGeneration) return;
     lanOnline = true;
     applyRemoteOrders(data.orders || {}, data.tables || []);
     updateLanUI();
@@ -136,17 +139,17 @@
   };
 
   serverStatePut = async function (data) {
+    if (window.__teaStateConflict) return false;
     try {
       const saved = await cloudFetch('/api/admin/state', { method: 'PUT', body: JSON.stringify({ state: data, expected_revision: window.__teaRevision || 0 }) });
       window.__teaRevision = Number(saved.revision || window.__teaRevision || 0);
       return true;
     } catch (error) {
       if (error.status === 409) {
-        const latest = await serverStateGet();
-        if (!latest) return false;
-        const retry = await cloudFetch('/api/admin/state', { method: 'PUT', body: JSON.stringify({ state: data, expected_revision: window.__teaRevision || 0 }) });
-        window.__teaRevision = Number(retry.revision || 0);
-        return true;
+        window.__teaStateConflict = true;
+        await serverStateGet();
+        if (typeof setActionStatus === 'function') setActionStatus('This screen is out of date. Reload TEA AMO before saving again.', 'bad');
+        return false;
       }
       console.error('Cloud state save failed', error);
       return false;
@@ -177,6 +180,7 @@
     if (!tableId || tableId === 'counter') return;
     pushChain = pushChain.then(async () => {
       const key = String(tableId), revision = orderEdits.get(key) || 0;
+      orderSyncGeneration += 1;
       try {
         let result;
         try {
@@ -184,8 +188,12 @@
         } catch (error) {
           if (error.status !== 409) throw error;
           const latest = await cloudFetch('/api/ops/orders/' + encodeURIComponent(tableId));
-          if (state.tableOrders[tableId]) state.tableOrders[tableId]._lan_version = Number(latest.version || 0);
-          result = await cloudFetch('/api/ops/orders/' + encodeURIComponent(tableId), { method: 'PUT', body: JSON.stringify(orderBody(tableId)) });
+          if (latest?.order) state.tableOrders[tableId] = { ...latest.order, _lan_version: Number(latest.version || 0), _lan_updated_by: latest.updated_by || '' };
+          else delete state.tableOrders[tableId];
+          orderEdits.set(key, revision);
+          if (typeof setActionStatus === 'function') setActionStatus('That table was changed on another screen. The latest order is shown.', 'warn');
+          if (activeSection === 'pos' && String(activeTableId) === String(tableId) && typeof renderPOSWorkspace === 'function') renderPOSWorkspace();
+          return;
         }
         if (state.tableOrders[tableId] && result.version) state.tableOrders[tableId]._lan_version = result.version;
         if (result.deleted) delete state.tableOrders[tableId];
@@ -236,19 +244,20 @@
     delete lanPushTimers[tableId];
     await pushChain;
     const key = String(tableId), revision = orderEdits.get(key) || 0;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        const result = await cloudFetch('/api/ops/orders/' + encodeURIComponent(tableId), { method: 'PUT', body: JSON.stringify(orderBody(tableId)) });
-        if (state.tableOrders[tableId] && result.version != null) state.tableOrders[tableId]._lan_version = Number(result.version || 0);
-        if ((orderEdits.get(key) || 0) === revision && !lanPushTimers[tableId]) pendingOrders.delete(key);
-        return result;
-      } catch (error) {
-        if (error.status !== 409 || attempt === 1) throw error;
-        const latest = await cloudFetch('/api/ops/orders/' + encodeURIComponent(tableId));
-        if (state.tableOrders[tableId]) state.tableOrders[tableId]._lan_version = Number(latest.version || 0);
-      }
+    orderSyncGeneration += 1;
+    try {
+      const result = await cloudFetch('/api/ops/orders/' + encodeURIComponent(tableId), { method: 'PUT', body: JSON.stringify(orderBody(tableId)) });
+      if (state.tableOrders[tableId] && result.version != null) state.tableOrders[tableId]._lan_version = Number(result.version || 0);
+      if ((orderEdits.get(key) || 0) === revision && !lanPushTimers[tableId]) pendingOrders.delete(key);
+      return result;
+    } catch (error) {
+      if (error.status !== 409) throw error;
+      const latest = await cloudFetch('/api/ops/orders/' + encodeURIComponent(tableId));
+      if (latest?.order) state.tableOrders[tableId] = { ...latest.order, _lan_version: Number(latest.version || 0), _lan_updated_by: latest.updated_by || '' };
+      const conflict = new Error('This table changed on another screen. Review the order, then take payment again.');
+      conflict.status = 409;
+      throw conflict;
     }
-    return null;
   }
 
   const localComplete = completeSelection;
@@ -348,6 +357,8 @@
           if (ingredientRow) {
             ingredientRow.stock = Number(row.stock);
             ingredientRow.avg_cost = Number(row.avg_cost);
+            ingredientRow.stockServer = ingredientRow.stock;
+            ingredientRow.avgCostServer = ingredientRow.avg_cost;
           }
         }
         await persistNow('cloud_payment');

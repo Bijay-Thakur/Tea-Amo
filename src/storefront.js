@@ -442,9 +442,25 @@ export async function guestOrderByToken(env, token) {
   return rows?.[0] || null;
 }
 
+export async function guestOrderById(env, id) {
+  const rows = await rest(env, `/rest/v1/guest_orders?id=eq.${encodeURIComponent(id)}&select=*`);
+  return rows?.[0] || null;
+}
+
+const GUEST_ORDER_LIST = '/rest/v1/guest_orders?select=*&order=created_at.desc';
+const CLOSED_GUEST_STATUSES = '(completed,rejected,cancelled,failed)';
+
 export async function listGuestOrders(env, { status } = {}) {
-  const filter = status ? `&status=eq.${encodeURIComponent(status)}` : '';
-  return await rest(env, `/rest/v1/guest_orders?select=*&order=created_at.desc&limit=200${filter}`) || [];
+  if (status) {
+    return await rest(env, `${GUEST_ORDER_LIST}&status=eq.${encodeURIComponent(status)}&limit=200`) || [];
+  }
+  const [open, recent] = await Promise.all([
+    rest(env, `${GUEST_ORDER_LIST}&status=not.in.${CLOSED_GUEST_STATUSES}&limit=1000`),
+    rest(env, `${GUEST_ORDER_LIST}&status=in.${CLOSED_GUEST_STATUSES}&limit=80`)
+  ]);
+  const rows = [...(open || []), ...(recent || [])];
+  rows.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  return rows;
 }
 
 const TRANSITIONS = {

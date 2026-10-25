@@ -29,6 +29,8 @@ await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261014090000_clo
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261007170000_menu_images.sql', import.meta.url), 'utf8').replace(/do \$\$[\s\S]+end \$\$;/g, ''));
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261024010000_ops_reset_and_storefront.sql', import.meta.url), 'utf8'));
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261024140000_fast_checkout_config.sql', import.meta.url), 'utf8'));
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261025030000_production_integrity.sql', import.meta.url), 'utf8'));
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261025052142_lock_guest_order_quote.sql', import.meta.url), 'utf8'));
 
 const admin = '11111111-1111-4111-8111-111111111111';
 const serverA = '22222222-2222-4222-8222-222222222222';
@@ -158,6 +160,64 @@ const guestReplay = await db.query(`select public.place_guest_order('idem-guest-
 check('guest idempotency', guest.rows[0].result.id === guestReplay.rows[0].result.id);
 const slim = await db.query(`select public.workspace_business_config() as result`);
 check('workspace config omits payment_qr', slim.rows[0].result.payment_qr == null && slim.rows[0].result.name === 'TEA AMO');
+
+await db.query(`update public.menu_items set price = 250 where id = '1'`);
+const quotedGuest = await db.query(`select public.place_guest_order('idem-guest-quote', 'delivery', 'cash_on_delivery', 'Mina', '9800000000', 'Thamel street', '', '', '[{"menu_item_id":"1","name":"Chicken Momo","unit_price":180,"qty":2}]'::jsonb, 360, 0, 80, 440, 'Rs', 2) as result`);
+const quotedId = quotedGuest.rows[0].result.id;
+let quoteLocked = false;
+try {
+  await db.query(`update public.guest_orders set total = 1, subtotal = 1 where id = '${quotedId}'`);
+} catch (error) {
+  quoteLocked = String(error.message).includes('guest_quote_locked');
+}
+check('guest quote cannot be rewritten', quoteLocked);
+let staffQuoteDenied = false;
+try {
+  await db.transaction(async (tx) => {
+    await tx.query(`select set_config('request.jwt.claim.sub', $1, true)`, [serverA]);
+    await tx.exec('set local role authenticated');
+    await tx.query(`update public.guest_orders set total = 1 where id = '${quotedId}'`);
+  });
+} catch (error) {
+  staffQuoteDenied = /permission denied/i.test(String(error.message));
+}
+check('staff session cannot change the guest total', staffQuoteDenied);
+const quotedPay = await asUser(admin, `select public.complete_guest_payment('${quotedId}'::uuid, 'Cash', '{}'::jsonb, 440, 0) as result`);
+const quoteCharged = Number(quotedPay.rows[0].result.bill.total);
+check('guest payment charges the stored quote', Math.abs(quoteCharged - 440) < 0.001 && Number(quotedPay.rows[0].result.bill.items[0].price) === 180 && Number(quotedPay.rows[0].result.bill.delivery_fee) === 80, JSON.stringify(quotedPay.rows[0].result.bill));
+const guestSales = Number((await db.query('select count(*)::int as n from public.sales')).rows[0].n);
+const stockAfterGuestPay = Number((await db.query(`select stock from public.ingredients where key = 'momo-dough'`)).rows[0].stock);
+check('guest payment deducts the recipe once', stockAfterGuestPay === -100, String(stockAfterGuestPay));
+const quotedReplay = await asUser(admin, `select public.complete_guest_payment('${quotedId}'::uuid, 'Cash', '{}'::jsonb, 440, 0) as result`);
+const guestPaid = await db.query(`select payment_status, sale_id, status from public.guest_orders where id = '${quotedId}'`);
+const salesAfterReplay = Number((await db.query('select count(*)::int as n from public.sales')).rows[0].n);
+check('second guest payment replays the same sale', quotedReplay.rows[0].result.replayed === true && salesAfterReplay === guestSales && guestPaid.rows[0].payment_status === 'paid' && guestPaid.rows[0].status === 'completed' && guestPaid.rows[0].sale_id);
+
+const stockBeforeRace = Number((await db.query(`select stock from public.ingredients where key = 'momo-dough'`)).rows[0].stock);
+const salesBeforeRace = Number((await db.query('select count(*)::int as n from public.sales')).rows[0].n);
+await db.exec(`
+  create or replace function public.debug_reset_race() returns trigger language plpgsql as $fn$
+  begin
+    insert into public.guest_orders (public_ref, access_token, fulfillment, payment_method, customer_name, customer_phone, items, subtotal, total, idempotency_key)
+    values ('TA-RACE', 'token-race-reset', 'pickup', 'pay_at_pickup', 'Race', '9800000001', '[]'::jsonb, 0, 0, 'idem-race-reset');
+    return null;
+  end $fn$;
+`);
+await db.exec(`create trigger debug_reset_race after update on public.ingredients for each statement execute function public.debug_reset_race()`);
+let resetRolledBack = false;
+try {
+  await asUser(admin, `select public.reset_operational_data('{"business":{"name":"TEA AMO"},"menu":[],"bills":[]}'::jsonb, null, '${admin}', 'Owner')`);
+} catch (error) {
+  resetRolledBack = String(error.message).includes('reset_not_verified');
+}
+await db.exec(`drop trigger if exists debug_reset_race on public.ingredients`);
+const salesAfterRace = Number((await db.query('select count(*)::int as n from public.sales')).rows[0].n);
+const stockAfterRace = Number((await db.query(`select stock from public.ingredients where key = 'momo-dough'`)).rows[0].stock);
+check('failed reset rolls back', resetRolledBack && salesAfterRace === salesBeforeRace && stockAfterRace === stockBeforeRace);
+
+const replaced = await db.query(`select public.replace_recipes('[{"menu_name":"Chicken Momo","ingredient_key":"momo-dough","qty":50}]'::jsonb) as n`);
+const recipeRows = Number((await db.query(`select count(*)::int as n from public.recipes`)).rows[0].n);
+check('recipes replace in one transaction', Number(replaced.rows[0].n) === 1 && recipeRows === 1);
 
 if (failures.length) {
   console.error('Failed: ' + failures.join(', '));

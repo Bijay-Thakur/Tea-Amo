@@ -105,6 +105,12 @@ export async function runOperationalReset(env, { password, phrase, actor }) {
       p_actor_name: actor?.display_name || 'Administration'
     });
   } catch (error) {
+    const message = String(error?.message || '');
+    if (message.includes('reset_not_verified')) {
+      const rolledBack = new Error('Reset did not finish and was rolled back. No operational data was changed.');
+      rolledBack.status = 409;
+      throw rolledBack;
+    }
     error.status = error.status || 500;
     throw error;
   }

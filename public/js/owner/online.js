@@ -33,7 +33,7 @@
       if (button.dataset.pay) {
         const response = await fetch('/api/ops/guest-orders/' + encodeURIComponent(button.dataset.online), {
           method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ collect_payment: true, payment: 'Cash', idempotency_key: crypto.randomUUID() })
+          body: JSON.stringify({ collect_payment: true, payment: 'Cash' })
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || 'Payment was not recorded');

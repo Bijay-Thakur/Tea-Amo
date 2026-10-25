@@ -229,7 +229,7 @@ async function serverStatePut(data){
 function openDB(){return new Promise((resolve,reject)=>{if(!('indexedDB'in window))return reject(new Error('IndexedDB unavailable'));const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains('snapshots'))db.createObjectStore('snapshots')};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 async function dbGet(){try{const db=await openDB();return await new Promise((res,rej)=>{const tx=db.transaction('snapshots','readonly'),r=tx.objectStore('snapshots').get(SNAPSHOT_KEY);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}catch{return null}}
 async function dbPutLocal(data){try{const db=await openDB();await new Promise((res,rej)=>{const tx=db.transaction('snapshots','readwrite');tx.objectStore('snapshots').put(data,SNAPSHOT_KEY);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)});return true}catch{try{localStorage.setItem(DB_NAME,JSON.stringify(data));return true}catch{return false}}}
-async function dbPut(data){const localOk=await dbPutLocal(data);const serverOk=await serverStatePut(data);return !!(localOk||serverOk)}
+async function dbPut(data){const localOk=await dbPutLocal(data);const serverOk=await serverStatePut(data);return LAN_ENABLED?!!serverOk:!!(localOk||serverOk)}
 let saveTimer=null,savePending=false;
 function saveSoon(){savePending=true;clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,120)}
 async function saveNow(){clearTimeout(saveTimer);saveTimer=null;if(!savePending)return;savePending=false;state.stateUpdatedAt=new Date().toISOString();await dbPut(state)}
@@ -240,8 +240,8 @@ async function persistNow(reason=''){
   try{localStorage.setItem(DB_NAME,JSON.stringify(state));localOk=true}catch(err){console.error('localStorage backup failed',reason,err)}
   try{idbOk=await dbPutLocal(state)}catch(err){console.error('IndexedDB save failed',reason,err)}
   try{serverOk=await serverStatePut(state)}catch(err){console.error('Server master-state save failed',reason,err)}
-  const ok=!!(localOk||idbOk||serverOk);
-  if(!ok)console.error('CRITICAL: no durable copy was written.',reason);
+  const ok=LAN_ENABLED?!!serverOk:!!(localOk||idbOk||serverOk);
+  if(!ok&&!localOk&&!idbOk)console.error('CRITICAL: no durable copy was written.',reason);
   if(LAN_ENABLED&&!serverOk)console.warn('Server master-state copy was not written; local browser copy retained.',reason);
   return ok
 }

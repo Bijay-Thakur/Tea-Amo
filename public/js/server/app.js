@@ -787,7 +787,7 @@ $('onlineList')?.addEventListener('click', async (event) => {
     if (button.dataset.pay) {
       const paid = await api('/api/ops/guest-orders/' + encodeURIComponent(button.dataset.online), {
         method: 'PUT',
-        body: JSON.stringify({ collect_payment: true, payment: 'Cash', idempotency_key: crypto.randomUUID() })
+        body: JSON.stringify({ collect_payment: true, payment: 'Cash' })
       });
       toast(paid.bill?.id ? 'Payment recorded ' + paid.bill.id : 'Payment recorded');
     } else {
