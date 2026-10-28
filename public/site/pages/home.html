@@ -3,7 +3,7 @@
     <p class="eyebrow" id="homeTag">Café in Gokarna, Kathmandu</p>
     <h1 class="script" id="heroTitle"><span>Chiya that</span><span>brings people</span><span>together</span></h1>
     <p class="lede">Warm cups, comforting flavors, and good conversations in the heart of Gokarna.</p>
-    <a class="btn" href="#menu">Explore Menu</a>
+    <a class="btn" href="/menu">Explore Menu</a>
   </div>
   <div class="hero-visual">
     <svg class="leaf leaf-a" viewBox="0 0 80 80" aria-hidden="true"><path d="M12 48c18-28 42-34 58-32-2 22-16 42-40 50-8-8-14-14-18-18z"/><path d="M28 46c8-8 18-14 30-18"/></svg>
@@ -17,35 +17,14 @@
 <nav class="cat-strip wrap" id="categoryStrip" aria-label="Menu categories"></nav>
 
 <section class="wrap favorites" id="favorites" aria-labelledby="favoritesTitle">
-  <div class="section-head">
-    <h2 id="favoritesTitle">Today's Favorites</h2>
-    <p id="favoritesNote">A little taste of what TEA AMO has to offer.</p>
+  <div class="section-head section-head-row">
+    <div>
+      <h2 id="favoritesTitle">Today's Favorites</h2>
+      <p id="favoritesNote">A few cups and plates from today. The rest of the menu is one page away.</p>
+    </div>
+    <a class="text-link" href="/menu">See the menu</a>
   </div>
   <div id="homeFeatured" class="fav-grid"></div>
-</section>
-
-<section class="menu-band" id="menu" aria-labelledby="menuTitle">
-  <div class="wrap">
-    <div class="section-head">
-      <h2 id="menuTitle">Our Menu</h2>
-      <p>Find your favorite cup, comfort food, and something new to try.</p>
-    </div>
-    <div id="menuBrowser">
-      <div class="menu-tools">
-        <label class="search">
-          <span class="sr">Search the menu</span>
-          <input id="menuSearch" type="search" placeholder="Search the menu" autocomplete="off" enterkeyhint="search">
-        </label>
-        <label class="cat-select">
-          <span class="sr">Category</span>
-          <select id="menuCatSelect" aria-label="Category"></select>
-        </label>
-        <div id="menuChips" class="chips" role="toolbar" aria-label="Filter by category"></div>
-      </div>
-      <p id="menuCount" class="menu-count" aria-live="polite"></p>
-      <div id="menuGrid" class="menu-grid"></div>
-    </div>
-  </div>
 </section>
 
 <section class="wrap story" id="story" aria-labelledby="storyTitle">
@@ -68,7 +47,7 @@
     <div>
       <h2 id="visitTitle">Come sit with us</h2>
       <p id="visitAddress">Gokarna, Kathmandu, Nepal</p>
-      <p id="visitHours">7 AM to 9 PM</p>
+      <p id="visitHours" hidden></p>
     </div>
     <div id="visitActions" class="icon-row" aria-label="Contact the café"></div>
   </div>

@@ -1,6 +1,16 @@
 import { cookiesOf, sessionCookies, clearCookies } from './http.js';
 import { authUser, refreshGrant, rest } from './supabase.js';
 
+const sessions = new WeakMap();
+export function requestSession(request) { return sessions.get(request); }
+
+function expiresSoon(token) {
+  try {
+    const claims = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return Number(claims.exp) * 1000 < Date.now() + 120000;
+  } catch { return false; }
+}
+
 export function homeFor(role) {
   return role === 'admin' ? '/admin' : '/server';
 }
@@ -16,7 +26,7 @@ export async function establish(request, env) {
   let access = jar.tea_access || bearer(request);
   let refresh = jar.tea_refresh || '';
   let renewed = null;
-  if (!access && refresh) {
+  if (refresh && (!access || expiresSoon(access))) {
     renewed = await refreshGrant(env, refresh);
     access = renewed.access_token;
     refresh = renewed.refresh_token || refresh;
@@ -38,14 +48,16 @@ export async function establish(request, env) {
   }
   const profile = await profileFor(env, user.id);
   if (!profile || !profile.active) return { inactive: true, profile };
-  return { user, profile, access, refresh, renewed: Boolean(renewed) };
+  const session = { user, profile, access, refresh, renewed: Boolean(renewed) };
+  sessions.set(request, session);
+  return session;
   } catch {
     return null;
   }
 }
 
 export function applySession(response, request, session) {
-  if (!session?.renewed) return response;
+  if (!session?.renewed || response.headers.has('Set-Cookie')) return response;
   const headers = new Headers(response.headers);
   for (const cookie of sessionCookies(session.access, session.refresh, new URL(request.url).protocol === 'https:')) {
     headers.append('Set-Cookie', cookie);

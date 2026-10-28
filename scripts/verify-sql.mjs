@@ -21,6 +21,7 @@ await db.exec(`
   do $$ begin
     if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;
     if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
+    if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin bypassrls; end if;
   end $$;
 `);
 await db.exec(sql);
@@ -30,7 +31,16 @@ await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261007170000_men
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261024010000_ops_reset_and_storefront.sql', import.meta.url), 'utf8'));
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261024140000_fast_checkout_config.sql', import.meta.url), 'utf8'));
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261025030000_production_integrity.sql', import.meta.url), 'utf8'));
-await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261025052142_lock_guest_order_quote.sql', import.meta.url), 'utf8'));
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261027053941_reset_without_master_payload.sql', import.meta.url), 'utf8'));
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261028031357_lock_guest_order_quote.sql', import.meta.url), 'utf8'));
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261028031407_handover_security_hardening.sql', import.meta.url), 'utf8'));
+
+for (const fn of ['workspace_business_config()', 'payment_qr_for_method(text)', 'reset_operational_preview()', 'release_paid_table()', 'sync_cafe_checkout_config()', 'write_audit(text,text,text,jsonb)']) {
+  const result = await db.query(`select has_function_privilege('anon', $1, 'EXECUTE') as anon, has_function_privilege('authenticated', $1, 'EXECUTE') as authenticated`, [`public.${fn}`]);
+  check(`internal RPC is inaccessible to clients: ${fn}`, !result.rows[0].anon && !result.rows[0].authenticated);
+}
+const serverConfigGrant = await db.query(`select has_function_privilege('service_role', 'public.workspace_business_config()', 'EXECUTE') as allowed`);
+check('service role retains workspace configuration access', serverConfigGrant.rows[0].allowed);
 
 const admin = '11111111-1111-4111-8111-111111111111';
 const serverA = '22222222-2222-4222-8222-222222222222';
@@ -150,7 +160,8 @@ await db.query(`insert into public.sales (id, total, bill, result, idempotency_k
 const preview = await db.query(`select public.reset_operational_preview() as result`);
 check('reset preview sees sales', Number(preview.rows[0].result.sales) >= 1, JSON.stringify(preview.rows[0].result));
 const wiped = await db.query(`select public.reset_operational_data('{"business":{"name":"TEA AMO"},"menu":[],"bills":[]}'::jsonb, 1, '${admin}', 'Owner') as result`);
-check('reset reports verified', wiped.rows[0].result.verified === true, JSON.stringify(wiped.rows[0].result));
+check('reset reports verified', wiped.rows[0].result.verified === true && wiped.rows[0].result.state == null, JSON.stringify(wiped.rows[0].result));
+check('reset keeps the café setup', Number((await db.query(`select data#>>'{business,taxRate}' as tax from public.business_documents where name = 'master'`)).rows[0].tax) === 13);
 check('sales gone after reset', Number((await db.query('select count(*) as n from public.sales')).rows[0].n) === 0);
 check('generation advanced', Number((await db.query(`select operational_generation from public.business_documents where name = 'master'`)).rows[0].operational_generation) === 2);
 

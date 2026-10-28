@@ -841,8 +841,11 @@ async function loadOnline() {
 }
 
 async function logout() {
-  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-  location.assign('/staff/login');
+  try {
+    const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    if (!response.ok) throw new Error('Could not log out. Please try again.');
+    location.assign('/staff/login');
+  } catch (error) { toast(error.message || 'Could not log out. Please try again.'); }
 }
 $('logout').onclick = logout;
 $('profileLogout').onclick = logout;
@@ -924,6 +927,7 @@ async function boot() {
   setInterval(() => api('/api/server/presence', { method: 'POST', body: '{}' }).catch(() => {}), 30000);
   api('/api/server/presence', { method: 'POST', body: '{}' }).catch(() => {});
   let realtime = false;
+  let realtimeClient = null;
   function startFallbackPoll() {
     if (realtime || window.__teaServerPoll) return;
     window.__teaServerPoll = setInterval(() => {
@@ -933,9 +937,10 @@ async function boot() {
   }
   try {
     const config = await api('/api/auth/config');
-    if (window.supabase && accessToken && session.refresh_token) {
-      const client = window.supabase.createClient(config.url, config.anonKey, { auth: { persistSession: false } });
-      await client.auth.setSession({ access_token: accessToken, refresh_token: session.refresh_token });
+    if (window.supabase && accessToken) {
+      const client = window.supabase.createClient(config.url, config.anonKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+      realtimeClient = client;
+      await client.realtime.setAuth(accessToken);
       client.channel('tea-amo-server')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'live_orders' }, () => { if (!dirty && !saving && !paying) loadWorkspace().catch(() => setNet(false)); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => { if (!dirty && !saving && !paying && activeTable) refreshOrder().catch(() => {}); })
@@ -950,6 +955,14 @@ async function boot() {
     setNet(false);
     startFallbackPoll();
   }
+  setInterval(async () => {
+    if (document.visibilityState !== 'visible') return;
+    try {
+      const current = await api('/api/auth/session');
+      accessToken = current.access_token || '';
+      await realtimeClient?.realtime.setAuth(accessToken);
+    } catch { /* The normal request path handles expired authentication. */ }
+  }, 60000);
 }
 
 boot().catch((error) => {

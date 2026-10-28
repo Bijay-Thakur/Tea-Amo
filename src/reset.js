@@ -48,12 +48,7 @@ async function masterRow(env) {
 }
 
 export async function previewOperationalReset(env) {
-  let counts = {};
-  try {
-    counts = await rpc(env, 'reset_operational_preview', {});
-  } catch {
-    counts = {};
-  }
+  const counts = await rpc(env, 'reset_operational_preview', {}).catch(() => ({}));
   const row = await masterRow(env);
   const data = row?.data || {};
   return {
@@ -95,11 +90,10 @@ export async function runOperationalReset(env, { password, phrase, actor }) {
     error.status = 403;
     throw error;
   }
-  const nextData = clearedOperationalState(row.data);
   let result;
   try {
     result = await rpc(env, 'reset_operational_data', {
-      p_next_data: nextData,
+      p_next_data: {},
       p_expected_revision: Number(row.revision || 0),
       p_actor_id: actor?.id || null,
       p_actor_name: actor?.display_name || 'Administration'
@@ -111,6 +105,16 @@ export async function runOperationalReset(env, { password, phrase, actor }) {
       rolledBack.status = 409;
       throw rolledBack;
     }
+    if (message.includes('state_revision_conflict')) {
+      const conflict = new Error('The café record changed on another screen. Reload TEA AMO and try the reset again.');
+      conflict.status = 409;
+      throw conflict;
+    }
+    if (/statement timeout|canceling statement/i.test(message)) {
+      const timeout = new Error('The reset took too long and was rolled back. No operational data was changed.');
+      timeout.status = 409;
+      throw timeout;
+    }
     error.status = error.status || 500;
     throw error;
   }
@@ -120,7 +124,8 @@ export async function runOperationalReset(env, { password, phrase, actor }) {
     error.result = result;
     throw error;
   }
-  return result;
+  const fresh = await masterRow(env);
+  return { ...result, state: fresh?.data || clearedOperationalState(row.data) };
 }
 
 export async function saveDashboardBaseline(env, baseline) {

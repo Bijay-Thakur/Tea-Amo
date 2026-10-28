@@ -37,9 +37,10 @@
     if (window.supabase && TEA_AMO_CLOUD.url && accessToken) {
       try {
         window.teaSupabase = window.supabase.createClient(TEA_AMO_CLOUD.url, TEA_AMO_CLOUD.anonKey, {
-          auth: { persistSession: true, autoRefreshToken: true, storageKey: 'tea-amo-admin' }
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
         });
-        await window.teaSupabase.auth.setSession({ access_token: accessToken, refresh_token: data.refresh_token || '' });
+        try { localStorage.removeItem('tea-amo-admin'); } catch {}
+        await window.teaSupabase.realtime.setAuth(accessToken);
       } catch (error) {
         console.error(error);
         window.teaSupabase = null;
@@ -88,10 +89,13 @@
     }
     lanApplyingRemote = false;
     if (!changed.length) return;
-    if (activeSection === 'pos') {
-      if (activeTableId) renderPOSWorkspace();
-      else renderTableFloor();
-    } else if (activeSection === 'dashboard') renderDashboard();
+    if (activeSection === 'pos' && activeTableId) {
+      if (changed.some((id) => String(id) === String(activeTableId))) {
+        renderCart();
+        if (typeof paintAdminOrderHead === 'function') paintAdminOrderHead();
+      }
+    } else if (activeSection === 'pos') renderTableFloor();
+    else if (activeSection === 'dashboard') renderDashboard();
   }
 
   async function refreshOrders() {
@@ -103,15 +107,21 @@
     updateLanUI();
   }
 
+  let refreshDebounce = null;
+  function scheduleRefresh() {
+    clearTimeout(refreshDebounce);
+    refreshDebounce = setTimeout(() => { refreshDebounce = null; refreshOrders().catch(() => { lanOnline = false; updateLanUI(); }); }, 280);
+  }
+
   function subscribe() {
     if (!window.teaSupabase) {
       refreshTimer = setInterval(() => { if (document.visibilityState === 'visible') refreshOrders().catch(() => { lanOnline = false; updateLanUI(); }); }, 4000);
       return;
     }
     window.teaSupabase.channel('tea-amo-admin')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_orders' }, () => refreshOrders().catch(() => {}))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cafe_tables' }, () => refreshOrders().catch(() => {}))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => refreshOrders().catch(() => {}))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_orders' }, () => scheduleRefresh())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cafe_tables' }, () => scheduleRefresh())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => scheduleRefresh())
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sales' }, (payload) => {
         const bill = payload.new?.bill;
         if (bill && !state.bills.some((item) => item.id === bill.id)) {
@@ -361,8 +371,7 @@
             ingredientRow.avgCostServer = ingredientRow.avg_cost;
           }
         }
-        await persistNow('cloud_payment');
-      }).catch((error) => console.error('Payment backup sync failed', error));
+      }).catch((error) => console.error('Payment stock refresh failed', error));
       refreshOrders().catch(() => {});
       setActionStatus(`${opts.nonChargeable ? 'Non-chargeable order' : 'Payment'} completed: ${bill.id}${opts.nonChargeable ? '' : ' · ' + rs(bill.total)}`, 'good');
       if (activeSection === 'dashboard') renderDashboard();
@@ -385,7 +394,17 @@
   };
   void localComplete;
 
-  restoreSession().then(() => window.TEA_AMO_BOOT()).catch((error) => {
+  restoreSession().then(() => {
+    setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const session = await cloudFetch('/api/auth/session');
+        accessToken = session.access_token || '';
+        await window.teaSupabase?.realtime.setAuth(accessToken);
+      } catch { /* The normal request path handles expired authentication. */ }
+    }, 60000);
+    return window.TEA_AMO_BOOT();
+  }).catch((error) => {
     console.error(error);
     location.assign('/staff/login');
   });

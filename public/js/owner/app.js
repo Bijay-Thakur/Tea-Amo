@@ -3,7 +3,7 @@ const $=id=>document.getElementById(id);
 const clone=x=>structuredClone(x);
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 function debounce(fn,ms=100){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
-function freshState(){return{version:1,schemaVersion:3,menuCatalogVersion:MENU_CATALOG_VERSION,setup:false,passwordAuth:null,business:{name:'TEA AMO',branch:'Main Branch',currency:'Rs',taxRate:0,payment_qr:{eSewa:'',Khalti:'',Fonepay:''}},passwordHash:'',menu:clone(MENU_SEED),ingredients:clone(INGREDIENT_SEED),recipes:clone(RECIPE_SEED),staff:[],attendance:[],bills:[],vendors:[],purchases:[],waste:[],expenses:[],customers:[],complaints:[],accountTransfers:[],inventoryLog:[],businessDays:[],auditLog:[],cart:[],dailyBusinessReports:[],dashboardBaseline:null,tables:clone(DEFAULT_TABLES),tableOrders:{},floorLayoutVersion:'TEA-AMO-FLOOR-1'}}
+function freshState(){return{version:1,schemaVersion:3,menuCatalogVersion:MENU_CATALOG_VERSION,setup:false,passwordAuth:null,business:{name:'TEA AMO',branch:'Main Branch',currency:'Rs',taxRate:0,payment_qr:{eSewa:'',Khalti:'',Fonepay:''}},passwordHash:'',menu:clone(MENU_SEED),ingredients:[],recipes:{},staff:[],attendance:[],bills:[],vendors:[],purchases:[],waste:[],expenses:[],customers:[],complaints:[],accountTransfers:[],inventoryLog:[],businessDays:[],auditLog:[],cart:[],dailyBusinessReports:[],dashboardBaseline:null,tables:clone(DEFAULT_TABLES),tableOrders:{},floorLayoutVersion:'TEA-AMO-FLOOR-1'}}
 let state=freshState();
 let activeSection='dashboard',activeInvTab='stock',editingIngredientKey=null,lastPaidBill=null;
 const index={menu:new Map(),ingredients:new Map(),vendors:new Map(),customers:new Map(),recipeCost:new Map()};
@@ -34,23 +34,13 @@ function repairState(s){
       active:x.active!==false
     })).filter(x=>x.name);
   }
-  // Self-heal ingredients by normalized name/key, preserving stock and setup values.
-  const oldIng=Array.isArray(s.ingredients)?s.ingredients:[];
-  const oldIngByName=new Map(oldIng.map(i=>[String(i.name||'').toLowerCase(),i]));
-  s.ingredients=INGREDIENT_SEED.map(seed=>{
-    let old=oldIngByName.get(seed.name.toLowerCase())||oldIng.find(i=>i.key===seed.key)||{};
-    return {...seed,...old,key:seed.key,name:seed.name,unit:old.unit||seed.unit,stock:Number(old.stock||0),avg_cost:Number(old.avg_cost||0),reorder:Number(old.reorder||0),target:Number(old.target??old.reorder??0),active:old.active!==false};
-  });
-  // Keep custom ingredients too.
-  const seedNames=new Set(s.ingredients.map(i=>i.name.toLowerCase()));
-  oldIng.forEach(i=>{if(i.name&&!seedNames.has(i.name.toLowerCase()))s.ingredients.push({key:i.key||slugKey(i.name),name:i.name,unit:i.unit||'g',stock:Number(i.stock||0),avg_cost:Number(i.avg_cost||0),reorder:Number(i.reorder||0),target:Number(i.target||0),shelf_life_days:Number(i.shelf_life_days||0),preferred_vendor_id:i.preferred_vendor_id||null,notes:i.notes||'',active:i.active!==false})});
-  // Always guarantee complete standard recipes. Preserve valid user recipe edits when stored in new format.
+  // Saved ingredients and recipes are authoritative; an empty catalog must stay empty.
+  s.ingredients=(Array.isArray(s.ingredients)?s.ingredients:[]).filter(i=>i&&i.name).map(i=>({...i,key:i.key||slugKey(i.name),unit:i.unit||'g',stock:Number(i.stock||0),avg_cost:Number(i.avg_cost||0),reorder:Number(i.reorder||0),target:Number(i.target||0),active:i.active!==false}));
   s.recipes=s.recipes&&typeof s.recipes==='object'?s.recipes:{};
   if(!s.recipeCleared||typeof s.recipeCleared!=='object'||Array.isArray(s.recipeCleared))s.recipeCleared={};
-  for(const [name,seedRecipe] of Object.entries(RECIPE_SEED)){
-    const r=Array.isArray(s.recipes[name])?s.recipes[name]:seedRecipe;
+  for(const [name,recipe] of Object.entries(s.recipes)){
+    const r=Array.isArray(recipe)?recipe:[];
     s.recipes[name]=r.filter(x=>x&&x.ingredient_key&&Number.isFinite(Number(x.qty))).map(x=>({ingredient_key:x.ingredient_key,qty:Number(x.qty)}));
-    if(!s.recipes[name].length&&!s.recipeCleared[name])s.recipes[name]=clone(seedRecipe);
   }
   for(const k of ['staff','attendance','bills','vendors','purchases','waste','expenses','customers','complaints','accountTransfers','inventoryLog','businessDays','auditLog','cart','ownerCapital','dailyBusinessReports'])if(!Array.isArray(s[k]))s[k]=[];
   s.menu.forEach(m=>{if(!Array.isArray(s.recipes[m.name]))s.recipes[m.name]=[]});
@@ -89,8 +79,7 @@ function legacyToNew(old){
   if(Array.isArray(old.menu)){n.menu=clone(old.menu);n.menuCatalogVersion=old.menuCatalogVersion||''}
   const oldIdToKey=new Map();
   if(Array.isArray(old.ingredients)){
-    const byName=new Map(old.ingredients.map(x=>[String(x.name||'').toLowerCase(),x]));
-    n.ingredients=n.ingredients.map(i=>{let o=byName.get(i.name.toLowerCase())||{};if(o.id!=null)oldIdToKey.set(o.id,i.key);return{...i,stock:Number(o.stock||0),avg_cost:Number(o.avg_cost||0),reorder:Number(o.reorder||0),target:Number(o.target??o.reorder??0),shelf_life_days:Number(o.shelf_life_days||0),preferred_vendor_id:o.preferred_vendor_id||null,notes:o.notes||'',active:o.active!==false}});
+    n.ingredients=old.ingredients.map(o=>{const key=o.key||slugKey(o.name);if(o.id!=null)oldIdToKey.set(o.id,key);return{...o,key,stock:Number(o.stock||0),avg_cost:Number(o.avg_cost||0),reorder:Number(o.reorder||0),target:Number(o.target??o.reorder??0),shelf_life_days:Number(o.shelf_life_days||0),preferred_vendor_id:o.preferred_vendor_id||null,notes:o.notes||'',active:o.active!==false}});
   }
   n.inventoryLog=(old.inventoryLog||[]).map(x=>({...x,ingredient_key:x.ingredient_key||oldIdToKey.get(x.ingredient_id)||''}));
   n.purchases=(old.purchases||[]).map(x=>({...x,ingredient_key:x.ingredient_key||oldIdToKey.get(x.ingredient_id)||''}));
@@ -498,15 +487,21 @@ window.teaAdminFloorSnapshot=()=>state.tables.map(t=>{
 function elapsedText(ts){if(!ts)return'';let mins=Math.max(0,Math.floor((Date.now()-new Date(ts))/60000));if(mins<60)return`${mins} min`;return`${Math.floor(mins/60)}h ${mins%60}m`}
 function currentCart(){if(activeTableId&&activeTableId!=='counter')return ensureTableOrder(activeTableId).cart;return state.cart}
 function currentOrderMeta(){return activeTableId&&activeTableId!=='counter'?ensureTableOrder(activeTableId):null}
+let orderLocalTimer=null;
+function rememberOrderLocally(){
+  clearTimeout(orderLocalTimer);
+  orderLocalTimer=setTimeout(()=>{orderLocalTimer=null;dbPutLocal(state)},400)
+}
 function saveCurrentOrderUI(){
-  const o=currentOrderMeta();if(!o)return;
+  const o=currentOrderMeta();
+  if(!o){rememberOrderLocally();return}
   o.customerId=Number($('posCustomer').value)||null;
   o.discountType=$('discountType').value;
   o.discountValue=Number($('discountValue').value||0);
   o.orderRef=$('orderRef').value.trim();
   o.orderType='Dine-in';
   o.guestCount=Math.max(1,Number($('guestCount').value||1));
-  saveSoon();queueLanOrderPush(activeTableId)
+  queueLanOrderPush(activeTableId)
 }
 function openTable(id){
   const t=tableById(id);if(!t||!t.active)return;
@@ -629,7 +624,7 @@ function addCart(id){
       $('guestCount').value=o.guestCount;t.reservation=null
     }
   }
-  saveCurrentOrderUI();saveSoon();queueLanOrderPush(activeTableId);renderCart()
+  saveCurrentOrderUI();renderCart()
 }
 function changeQty(id,d){
   const cart=currentCart(),c=cart.find(x=>String(x.id)===String(id));if(!c)return;
@@ -637,18 +632,18 @@ function changeQty(id,d){
   c.served=Math.max(0,Math.min(Number(c.served||0),Math.max(0,c.qty)));
   if(c.qty<=0){const ix=cart.indexOf(c);if(ix>=0)cart.splice(ix,1)}
   const o=currentOrderMeta();if(o&&!cart.length)o.openedAt=null;
-  saveCurrentOrderUI();saveSoon();queueLanOrderPush(activeTableId);renderCart()
+  saveCurrentOrderUI();renderCart()
 }
 
 function markServed(id,delta=1){
   const c=currentCart().find(x=>String(x.id)===String(id));if(!c)return;
   c.served=Math.max(0,Math.min(Number(c.qty||0),Number(c.served||0)+Number(delta||0)));
-  saveCurrentOrderUI();saveSoon();queueLanOrderPush(activeTableId);renderCart()
+  saveCurrentOrderUI();renderCart()
 }
 function markAllServed(id){
   const c=currentCart().find(x=>String(x.id)===String(id));if(!c)return;
   c.served=Number(c.qty||0);
-  saveCurrentOrderUI();saveSoon();queueLanOrderPush(activeTableId);renderCart()
+  saveCurrentOrderUI();renderCart()
 }
 function deductRecipe(m,qty,billId){for(const r of recipeFor(m)){const i=ingredient(r.ingredient_key);if(!i)continue;const used=r.qty*qty;i.stock-=used;state.inventoryLog.unshift({id:Date.now()+Math.random(),time:new Date().toISOString(),ingredient_key:i.key,qty_delta:-used,reason:'sale',ref:billId,note:m.name})}}
 async function checkout(){
@@ -1487,7 +1482,7 @@ async function init(){
   ownerWorkingDate=null;ownerWorkingDateUnlocked=false;try{sessionStorage.removeItem('teaAmoWorkingDate')}catch{}
   updateWorkingDateUI();
 
-  if(loaded)Promise.resolve(persistNow('startup_sync')).catch(err=>console.error('Background save error',err));
+  if(loaded&&loaded!==serverLoaded)Promise.resolve(persistNow('startup_sync')).catch(err=>console.error('Background save error',err));
   document.querySelectorAll('#inventoryTabs button').forEach(b=>b.onclick=()=>{activeInvTab=b.dataset.tab;document.querySelectorAll('.invtab').forEach(x=>x.classList.toggle('hidden',x.id!==`inv-${activeInvTab}`));document.querySelectorAll('#inventoryTabs button').forEach(x=>x.classList.toggle('active',x===b));renderInventoryActive()});
   window.addEventListener('resize',debounce(()=>{if(activeSection==='dashboard')renderDashboardCharts();if(activeSection==='reports')renderSellerAnalytics()},120));
   $('menuSearch').oninput=debounce(renderMenu,60);$('catFilter').onchange=renderMenu;
@@ -1497,7 +1492,7 @@ async function init(){
   document.addEventListener('click',()=>{$('posMoreMenu')?.classList.add('hidden');$('posMoreBtn')?.setAttribute('aria-expanded','false');document.querySelectorAll('.admin-pos-serve-pop').forEach(el=>el.classList.add('hidden'))});
   $('discountType').onchange=()=>{saveCurrentOrderUI();renderCart()};$('discountValue').oninput=()=>{saveCurrentOrderUI();renderCart()};
   $('posCustomer').onchange=saveCurrentOrderUI;$('orderRef').onchange=saveCurrentOrderUI;$('orderType').onchange=saveCurrentOrderUI;$('guestCount').onchange=saveCurrentOrderUI;$('payment').onchange=updateMainPaymentQr;
-  $('clearCart').onclick=()=>{const cart=currentCart();if(cart.length&&!confirm('Clear this open order?'))return;cart.splice(0,cart.length);const o=currentOrderMeta();if(o)o.openedAt=null;saveCurrentOrderUI();saveSoon();if(activeTableId&&activeTableId!=='counter')deleteLanOrder(activeTableId);renderCart()};
+  $('clearCart').onclick=()=>{const cart=currentCart();if(cart.length&&!confirm('Clear this open order?'))return;cart.splice(0,cart.length);const o=currentOrderMeta();if(o)o.openedAt=null;saveCurrentOrderUI();if(activeTableId&&activeTableId!=='counter')deleteLanOrder(activeTableId);renderCart()};
   $('checkout').onclick=checkout;
   $('openCounterOrder').onclick=openCounter;$('backToTables').onclick=backToTables;
   $('tableReserveBtn').onclick=()=>{if(activeTableId&&activeTableId!=='counter')openReservation(activeTableId)};
@@ -1891,7 +1886,15 @@ async function completeOperationalReset(){
     const response=await fetch('/api/admin/reset/operational',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('fullResetPassword').value,phrase:'RESET TEA AMO'})});
     const result=await response.json().catch(()=>({}));
     if(!response.ok||!result.ok||!result.verified)throw new Error(result.error||'The database reset was not verified.');
-    state=repairState(result.state||state);
+    if(result.state)state=repairState(result.state);
+    else{
+      for(const key of ['bills','attendance','purchases','waste','expenses','customers','complaints','inventoryLog','businessDays','auditLog','ownerCapital','dailyBusinessReports','accountTransfers','cart'])state[key]=[];
+      state.tableOrders={};state.dashboardBaseline=null;
+      if(Array.isArray(state.ingredients))state.ingredients=state.ingredients.map(item=>({...item,stock:0,avg_cost:0,stockServer:0,avgCostServer:0}));
+      if(Array.isArray(state.staff))state.staff=state.staff.map(item=>({...item,clockIn:null}));
+      if(Array.isArray(state.tables))state.tables=state.tables.map(item=>({...item,attention:false,reservation:null,seated:false}));
+      state=repairState(state);
+    }
     state.operationalGeneration=Number(result.generation||state.operationalGeneration||1);
     window.__teaRevision=Number(result.revision||0);
     activeTableId=null;lastPaidBill=null;rebuildIndex();

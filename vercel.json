@@ -5,17 +5,28 @@
       "includeFiles": "public/**"
     }
   },
-  "headers": [
+  "routes": [
     {
-      "source": "/assets/3d/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }]
+      "src": "/(.*)",
+      "headers": {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Content-Security-Policy": "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'"
+      },
+      "continue": true
     },
     {
-      "source": "/vendor/three/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }]
-    }
-  ],
-  "routes": [
+      "src": "/assets/3d/(.*)",
+      "headers": { "Cache-Control": "public, max-age=3600" },
+      "continue": true
+    },
+    {
+      "src": "/vendor/three/(.*)",
+      "headers": { "Cache-Control": "public, max-age=3600" },
+      "continue": true
+    },
     { "src": "/", "dest": "/api/index?__path=" },
     { "src": "/index.html", "dest": "/api/index?__path=index.html" },
     { "src": "/staff/login", "dest": "/api/index?__path=staff/login" },

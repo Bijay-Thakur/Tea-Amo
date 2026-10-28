@@ -66,11 +66,11 @@ assert.deepEqual(view.storefront.featuredIds, ['Classic Sweet Chiya']);
 assert.equal(publicHttpUrl('javascript:alert(1)'), '');
 assert.equal(guestOrderingAvailable(), false);
 const published = publicCafeView(publicBusiness({ business: {}, storefront: { hours: '', phone: ' ', email: '', social: { facebook: '', instagram: '' } } }));
-assert.equal(published.storefront.hours, '7 AM to 9 PM');
-assert.equal(published.storefront.phone, '9717128778');
-assert.equal(published.storefront.email, 'teaaamo2024@gmail.com');
-assert.equal(published.storefront.social.instagram, 'https://www.instagram.com/tea.amo2024/');
-assert.equal(published.storefront.social.facebook, 'https://www.facebook.com/share/19rWN7yofK/?mibextid=wwXIfr');
+assert.equal(published.storefront.hours, '');
+assert.equal(published.storefront.phone, '');
+assert.equal(published.storefront.email, '');
+assert.equal(published.storefront.social.instagram, '');
+assert.equal(published.storefront.social.facebook, '');
 assert.equal(published.storefront.social.tiktok, '');
 
 console.log('PASS storefront: phone validation, server prices, availability, delivery minimum, guest details, featured menu, public view');

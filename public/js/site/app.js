@@ -18,10 +18,40 @@ function iconKind(category) {
   if (/sheesha/.test(name)) return 'sheesha';
   if (/coffee/.test(name)) return 'coffee';
   if (/cigaret/.test(name)) return 'pack';
-  if (/hard drink|beer|alcohol/.test(name)) return 'glass';
+  if (/hard drink|beer|alcohol|spirit|wine/.test(name)) return 'glass';
   if (/iced|cold|lassi|drink/.test(name)) return 'cold';
   if (/chiya|tea|herbal|flavour|flavor/.test(name)) return 'tea';
   return 'plate';
+}
+
+const GROUPS = [
+  { id: 'tea', label: 'Tea', icon: 'tea', test: /chiya|flavour tea|flavor tea|herbal|\btea\b/i },
+  { id: 'coffee', label: 'Coffee', icon: 'coffee', test: /coffee/i },
+  { id: 'cold', label: 'Cold drinks', icon: 'cold', test: /iced|cold|lassi/i },
+  { id: 'sheesha', label: 'Sheesha', icon: 'sheesha', test: /sheesha/i },
+  { id: 'food', label: 'Food', icon: 'plate', test: /^menu$|opening|food|snack|kitchen|momo|special/i },
+  { id: 'bar', label: 'Bar', icon: 'glass', test: /hard drink|beer|alcohol|spirit|wine/i },
+  { id: 'cigarettes', label: 'Cigarettes', icon: 'pack', test: /cigaret/i }
+];
+
+function groupFor(category) {
+  const name = String(category || '').trim();
+  const spec = GROUPS.find((group) => group.test.test(name));
+  if (spec) return spec;
+  return { id: `other:${name.toLowerCase()}`, label: name || 'Menu', icon: iconKind(name) };
+}
+
+function groupsFrom(menu) {
+  const present = new Map();
+  for (const item of menu) {
+    const group = groupFor(item.category);
+    if (!present.has(group.id)) present.set(group.id, group);
+  }
+  const ordered = GROUPS.filter((group) => present.has(group.id));
+  for (const group of present.values()) {
+    if (!GROUPS.some((spec) => spec.id === group.id)) ordered.push(group);
+  }
+  return ordered;
 }
 
 function intro(about) {
@@ -75,7 +105,7 @@ function markNav() {
   const path = document.body.dataset.path || location.pathname;
   document.querySelectorAll('.site-nav a').forEach((link) => {
     const key = link.dataset.nav;
-    const current = (key === 'home' && path === '/') || (key === 'about' && path === '/about-contact');
+    const current = (key === 'home' && path === '/') || (key === 'menu' && path === '/menu') || (key === 'about' && path === '/about-contact');
     if (current) link.setAttribute('aria-current', 'page');
   });
 }
@@ -135,12 +165,13 @@ function applyCafe(cafe) {
   const site = cafe?.storefront || {};
   const address = site.address || 'Gokarna, Kathmandu, Nepal';
   const hours = String(site.hours || '').trim();
-  const hoursText = hours || 'Opening hours have not been published yet.';
+  const hoursText = hours;
   const set = (id, value) => { const el = $(id); if (el && value != null) el.textContent = value; };
   set('footerAddress', address);
   set('footerHours', hoursText);
   set('visitAddress', address);
   set('visitHours', hoursText);
+  for (const id of ['footerHours', 'visitHours']) { const el = $(id); if (el) el.hidden = !hoursText; }
   set('homeTag', site.heroTag || 'Café in Gokarna, Kathmandu');
   const copy = intro(site.about);
   set('homeAbout', copy);
@@ -187,8 +218,7 @@ function renderHome(data) {
   const featured = Array.isArray(data.featured) ? data.featured : menu.slice(0, 4);
   applyCafe(cafe);
   const note = $('favoritesNote');
-  if (note) note.textContent = data.featuredCurated ? 'Selected by the café.' : 'A little taste of what TEA AMO has to offer.';
-  const categories = [...new Set(menu.map((item) => item.category).filter(Boolean))];
+  if (note) note.textContent = data.featuredCurated ? 'Selected by the café.' : 'A few cups and plates from today. The rest of the menu is one page away.';
   const featuredHost = $('homeFeatured');
   if (featuredHost) {
     featuredHost.innerHTML = featured.length
@@ -197,56 +227,71 @@ function renderHome(data) {
   }
   const strip = $('categoryStrip');
   if (strip) {
-    strip.innerHTML = categories.map((category) => `<button type="button" class="cat-btn" data-cat="${esc(category)}"><span class="mark">${ICONS[iconKind(category)]}</span><span>${esc(category)}</span></button>`).join('');
+    const groups = groupsFrom(menu);
+    strip.innerHTML = groups.map((group) => `<a class="cat-btn" href="/menu?group=${encodeURIComponent(group.id)}"><span class="mark">${ICONS[group.icon] || ICONS.plate}</span><span>${esc(group.label)}</span></a>`).join('');
   }
+  bindItems(cafe, menu);
+}
+
+function renderMenu(data) {
+  const cafe = data.cafe || {};
+  const menu = Array.isArray(data.menu) ? data.menu : [];
+  applyCafe(cafe);
+  const groups = groupsFrom(menu);
   const chips = $('menuChips');
   if (chips) {
-    chips.innerHTML = `<button type="button" class="chip" data-cat="">All</button>` + categories.map((category) => `<button type="button" class="chip" data-cat="${esc(category)}">${esc(category)}</button>`).join('');
+    chips.innerHTML = `<button type="button" class="chip" data-group="">All</button>` + groups.map((group) => `<button type="button" class="chip" data-group="${esc(group.id)}">${esc(group.label)}</button>`).join('');
   }
   const catSelect = $('menuCatSelect');
   if (catSelect) {
-    catSelect.innerHTML = `<option value="">All categories</option>` + categories.map((category) => `<option value="${esc(category)}">${esc(category)}</option>`).join('');
+    catSelect.innerHTML = `<option value="">All</option>` + groups.map((group) => `<option value="${esc(group.id)}">${esc(group.label)}</option>`).join('');
   }
 
   const params = new URLSearchParams(location.search);
-  let category = params.get('cat') || '';
-  if (category && !categories.includes(category)) category = '';
+  let group = params.get('group') || '';
+  if (!group && params.get('cat')) group = groupFor(params.get('cat')).id;
+  if (group && !groups.some((item) => item.id === group)) group = '';
   const search = $('menuSearch');
   const grid = $('menuGrid');
   const paint = () => {
     const query = (search?.value || '').trim().toLowerCase();
-    const rows = menu.filter((item) => (!category || item.category === category) && (!query || `${item.name} ${item.description || ''}`.toLowerCase().includes(query)));
+    const rows = menu.filter((item) => {
+      if (group && groupFor(item.category).id !== group) return false;
+      if (!query) return true;
+      return `${item.name} ${item.description || ''} ${item.category || ''}`.toLowerCase().includes(query);
+    });
     if (grid) {
-      grid.innerHTML = rows.map((item) => `<button type="button" class="item-card ${item.available === false ? 'unavailable' : ''}" data-item="${esc(item.id)}">${visualMarkup(item)}<span class="copy"><span class="item-name">${esc(item.name)}</span><span class="price">${esc(money(cafe, item.price))}</span>${item.description ? `<p>${esc(item.description)}</p>` : ''}${item.available === false ? '<span class="status">Not available right now</span>' : ''}</span></button>`).join('')
+      grid.innerHTML = rows.map((item) => `<button type="button" class="item-card ${item.available === false ? 'unavailable' : ''}" data-item="${esc(item.id)}">${visualMarkup(item)}<span class="copy"><span class="item-cat">${esc(item.category || 'Menu')}</span><span class="item-name">${esc(item.name)}</span><span class="price">${esc(money(cafe, item.price))}</span>${item.description ? `<p>${esc(item.description)}</p>` : ''}${item.available === false ? '<span class="status">Not available right now</span>' : ''}</span></button>`).join('')
         || '<p class="empty">No items match.</p>';
     }
     const count = $('menuCount');
     if (count) count.textContent = menu.length ? `${rows.length} ${rows.length === 1 ? 'item' : 'items'}` : '';
-    if (catSelect) catSelect.value = category;
-    document.querySelectorAll('#menuChips .chip, #categoryStrip .cat-btn').forEach((button) => {
-      const value = button.dataset.cat || '';
-      const pressed = button.classList.contains('chip') ? value === category : category !== '' && value === category;
-      button.setAttribute('aria-pressed', String(pressed));
+    if (catSelect) catSelect.value = group;
+    document.querySelectorAll('#menuChips .chip').forEach((button) => {
+      button.setAttribute('aria-pressed', String((button.dataset.group || '') === group));
     });
   };
-  const chooseCategory = (next, scroll) => {
-    category = next || '';
+  const chooseGroup = (next) => {
+    group = next || '';
+    const url = new URL(location.href);
+    if (group) url.searchParams.set('group', group);
+    else url.searchParams.delete('group');
+    url.searchParams.delete('cat');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
     paint();
-    if (scroll) $('menuBrowser')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   };
   chips?.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-cat]');
+    const button = event.target.closest('[data-group]');
     if (!button) return;
-    chooseCategory(button.dataset.cat || '', false);
+    chooseGroup(button.dataset.group || '');
   });
-  document.getElementById('categoryStrip')?.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-cat]');
-    if (button) chooseCategory(button.dataset.cat || '', true);
-  });
-  catSelect?.addEventListener('change', () => chooseCategory(catSelect.value, false));
+  catSelect?.addEventListener('change', () => chooseGroup(catSelect.value));
   if (search) search.addEventListener('input', paint);
   paint();
+  bindItems(cafe, menu);
+}
 
+function bindItems(cafe, menu) {
   const dialog = $('itemDialog');
   const findItem = (id) => menu.find((item) => String(item.id) === String(id));
   const openItem = (item, push) => {
@@ -276,7 +321,7 @@ function renderHome(data) {
     const item = findItem(id);
     if (item) openItem(item, false);
   });
-  const initial = params.get('item') || itemIdFromHash();
+  const initial = new URLSearchParams(location.search).get('item') || itemIdFromHash();
   if (initial) openItem(findItem(initial), false);
 }
 
@@ -288,9 +333,13 @@ function itemIdFromHash() {
 markNav();
 bindHeader();
 const path = document.body.dataset.path || location.pathname;
-if (path === '/' || path === '/about-contact') {
-  api(path === '/' ? '/api/public/menu' : '/api/public/cafe').then((data) => {
+if (path === '/' && (location.hash === '#menu' || location.hash.startsWith('#item-'))) {
+  const id = itemIdFromHash();
+  location.replace(id ? `/menu?item=${encodeURIComponent(id)}` : '/menu');
+} else if (path === '/' || path === '/menu' || path === '/about-contact') {
+  api(path === '/about-contact' ? '/api/public/cafe' : '/api/public/menu').then((data) => {
     if (path === '/') renderHome(data);
+    else if (path === '/menu') renderMenu(data);
     else applyCafe(data.cafe);
   }).catch((error) => {
     const host = document.querySelector('.site-main');

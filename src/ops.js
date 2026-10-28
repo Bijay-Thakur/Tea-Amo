@@ -202,13 +202,13 @@ export async function saveMaster(env, incoming, expectedRevision) {
     error.status = 409;
     throw error;
   }
-  if (incoming?.operationalGeneration != null && Number(incoming.operationalGeneration) < generation) {
+  if (row && Number(incoming?.operationalGeneration ?? 1) !== generation) {
     const error = new Error('stale_generation');
     error.status = 409;
     error.code = 'stale_generation';
     throw error;
   }
-  incoming.operationalGeneration = Math.max(Number(incoming.operationalGeneration || 1), generation);
+  incoming.operationalGeneration = generation;
   const operational = await loadOperational(env);
   mergeMissingBills(incoming, operational.sales);
   applyAuthoritativeStock(incoming.ingredients, operational.stocks);
@@ -307,7 +307,12 @@ export async function syncCatalog(env, state) {
   } catch (error) {
     const message = String(error?.message || error);
     if (!/image_url|description|schema cache|column/i.test(message)) throw error;
-    await upsert(env, 'menu_items', menu.map(({ image_url, description, ...row }) => row), 'id');
+    await upsert(env, 'menu_items', menu.map((item) => {
+      const row = { ...item };
+      delete row.image_url;
+      delete row.description;
+      return row;
+    }), 'id');
   }
   await upsert(env, 'cafe_tables', tables, 'id');
   await upsert(env, 'ingredients', ingredients, 'key');

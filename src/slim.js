@@ -27,7 +27,7 @@ export async function loadWorkspaceBusiness(env) {
   } catch {
     // Fall back to a targeted document read when the RPC is not deployed yet.
   }
-  let rows = [];
+  let rows;
   try {
     rows = await rest(env, '/rest/v1/business_documents?name=eq.master&select=name:data->business->>name,branch:data->business->>branch,currency:data->business->>currency,tax_rate:data->business->taxRate,payment_methods:data->business->payment_methods,generation:operational_generation');
   } catch {

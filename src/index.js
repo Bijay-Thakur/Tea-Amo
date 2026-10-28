@@ -1,7 +1,7 @@
 import { json, text, redirect, readJson } from './http.js';
 import { configured, uploadMenuImageObject, deleteMenuImageObject } from './supabase.js';
-import { establish, applySession, homeFor, loginResponse, logoutResponse, requireRole } from './session.js';
-import { passwordGrant, rest, rpc } from './supabase.js';
+import { establish, applySession, homeFor, loginResponse, logoutResponse, requireRole, requestSession } from './session.js';
+import { passwordGrant, rest, rpc, revokeSession } from './supabase.js';
 import {
   assertLoginAllowed, clearLoginFailures, completeGuestPayment, completePayment, createServerAccount, findLogin,
   listServers, loadOperational, loadPaymentQr, markLogin, orderPayload, projectState,
@@ -19,6 +19,7 @@ const OWNER_SECTIONS = ['dashboard', 'pos', 'dayclose', 'online', 'staff', 'serv
 const STAFF_LOGIN = '/staff/login';
 const PUBLIC_PAGES = {
   '/': { page: 'home', title: 'TEA AMO — Café in Gokarna, Kathmandu' },
+  '/menu': { page: 'menu', title: 'Menu — TEA AMO' },
   '/about-contact': { page: 'about-contact', title: 'About & Contact — TEA AMO' },
   '/privacy-policy': { page: 'privacy', title: 'Privacy policy — TEA AMO' },
   '/terms': { page: 'terms', title: 'Terms — TEA AMO' }
@@ -39,12 +40,18 @@ function legacyRedirect(url) {
     '/order/confirmation': '/'
   };
   if (fixed[path]) return redirect(fixed[path]);
-  if (path === '/menu') {
+  if (path === '/') {
     const cat = url.searchParams.get('cat');
-    return redirect(cat ? `/?cat=${encodeURIComponent(cat)}#menu` : '/#menu');
+    const item = url.searchParams.get('item');
+    if (cat || item) {
+      const next = new URLSearchParams();
+      if (cat) next.set('cat', cat);
+      if (item) next.set('item', item);
+      return redirect(`/menu?${next.toString()}`);
+    }
   }
   const item = path.match(/^\/menu\/([^/]+)$/);
-  if (item) return redirect(`/?item=${encodeURIComponent(item[1])}#menu`);
+  if (item) return redirect(`/menu?item=${encodeURIComponent(item[1])}`);
   return null;
 }
 
@@ -76,6 +83,13 @@ function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 }
 
+function inlineJson(value) {
+  return JSON.stringify(value).replace(/[<>&\u2028\u2029]/g, (char) => ({
+    '<': '\\u003c', '>': '\\u003e', '&': '\\u0026',
+    '\u2028': '\\u2028', '\u2029': '\\u2029'
+  }[char]));
+}
+
 async function publicPage(env, request, spec, path) {
   const [shell, body] = await Promise.all([
     assetText(env, request, '/site/shell.html'),
@@ -92,20 +106,19 @@ async function serverPage(env, request, session) {
     assetText(env, request, '/server/index.html'),
     workspaceForServer(env, session.access, session.profile)
   ]);
-  const boot = `<script>window.TEA_AMO_CLOUD=${JSON.stringify({ url: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY })};window.TEA_AMO_SESSION=${JSON.stringify({
+  const boot = `<script>window.TEA_AMO_CLOUD=${inlineJson({ url: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY })};window.TEA_AMO_SESSION=${inlineJson({
     role: session.profile.role,
     home: homeFor(session.profile.role),
     access_token: session.access,
-    refresh_token: session.refresh,
     profile: publicProfile(session.profile)
-  })};window.TEA_AMO_WORKSPACE=${JSON.stringify(workspace)};</script>`;
+  })};window.TEA_AMO_WORKSPACE=${inlineJson(workspace)};</script>`;
   return text(html.replace('<!--BOOT-->', boot));
 }
 
 async function ownerPage(env, request) {
   const sections = (await Promise.all(OWNER_SECTIONS.map((name) => assetText(env, request, `/owner/sections/${name}.html`)))).join('\n');
   const shell = await assetText(env, request, '/owner/shell.html');
-  const boot = `<script>window.TEA_AMO_CLOUD=${JSON.stringify({ url: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY })};</script>\n<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>`;
+  const boot = `<script>window.TEA_AMO_CLOUD=${inlineJson({ url: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY })};</script>\n<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>`;
   return shell
     .replace('<!--SIDEBAR-->', await assetText(env, request, '/owner/partials/sidebar.html'))
     .replace('<!--TOPBAR-->', await assetText(env, request, '/owner/partials/topbar.html'))
@@ -160,13 +173,11 @@ async function login(request, env) {
   return loginResponse(request, session, {
     role: found.profile.role,
     home: homeFor(found.profile.role),
-    access_token: session.access_token,
-    refresh_token: session.refresh_token,
     profile: publicProfile(found.profile)
   });
 }
 
-async function adminState(request, env, session) {
+async function adminState(request, env) {
   if (request.method === 'GET') {
     const rows = await rest(env, '/rest/v1/business_documents?name=eq.master&select=revision,data');
     if (!rows?.[0]?.data?.menu) return json({ state: null, revision: Number(rows?.[0]?.revision || 0) });
@@ -305,7 +316,7 @@ async function handleOps(request, env, path) {
 async function handleAdmin(request, env, path) {
   const auth = await requireRole(request, env, 'admin');
   if (auth.error) return json({ error: auth.error }, auth.status);
-  if (path === '/api/admin/state') return applySession(await adminState(request, env, auth.session), request, auth.session);
+  if (path === '/api/admin/state') return applySession(await adminState(request, env), request, auth.session);
   if (path === '/api/admin/menu-images' && (request.method === 'POST' || request.method === 'DELETE')) {
     return applySession(await menuImageRequest(request, env), request, auth.session);
   }
@@ -433,17 +444,28 @@ async function handleServer(request, env, path) {
   return json({ error: 'Unknown server endpoint' }, 404);
 }
 
-export async function handle(request, env) {
+async function routeRequest(request, env) {
   try {
       const url = new URL(request.url);
       const path = url.pathname;
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+        const origin = request.headers.get('origin');
+        if (origin && origin !== url.origin) return json({ error: 'Cross-origin requests are not allowed' }, 403);
+      }
       if (!configured(env) && path !== '/favicon.ico') return missingConfig();
 
       if (path === '/api/auth/config' && request.method === 'GET') {
         return json({ configured: true, url: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY });
       }
       if (path === '/api/auth/login' && request.method === 'POST') return login(request, env);
-      if (path === '/api/auth/logout' && request.method === 'POST') return logoutResponse(request);
+      if (path === '/api/auth/logout' && request.method === 'POST') {
+        const session = await establish(request, env);
+        if (session?.access) {
+          try { await revokeSession(env, session.access); }
+          catch (error) { if (![401, 403].includes(error.status)) throw error; }
+        }
+        return logoutResponse(request);
+      }
       if (path === '/api/auth/session' && request.method === 'GET') {
         const session = await establish(request, env);
         if (!session || session.inactive) return session?.inactive ? logoutResponse(request) : json({ error: 'Authentication required' }, 401);
@@ -451,8 +473,7 @@ export async function handle(request, env) {
           profile: publicProfile(session.profile),
           role: session.profile.role,
           home: homeFor(session.profile.role),
-          access_token: session.access,
-          refresh_token: session.refresh
+          access_token: session.access
         }), request, session);
       }
       if (path === '/api/network' && request.method === 'GET') {
@@ -507,8 +528,25 @@ export async function handle(request, env) {
       return text('Not found', 404, 'text/plain; charset=utf-8');
     } catch (error) {
       console.error(JSON.stringify({ message: error.message, status: error.status || 500 }));
-      return json({ error: error.message || 'Server error' }, error.status || 500);
+      return json({ error: error.status && error.status < 500 ? error.message : 'The request could not be completed. Please try again.' }, error.status || 500);
   }
+}
+
+export async function handle(request, env) {
+  let response;
+  try { response = await routeRequest(request, env); }
+  catch (error) {
+    console.error(JSON.stringify({ message: error.message, status: error.status || 500 }));
+    response = json({ error: error.status && error.status < 500 ? error.message : 'The request could not be completed. Please try again.' }, error.status || 500);
+  }
+  response = applySession(response, request, requestSession(request));
+  const headers = new Headers(response.headers);
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('X-Frame-Options', 'DENY');
+  headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  headers.set('Content-Security-Policy', "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'");
+  return new Response(response.body, { status: response.status, headers });
 }
 
 export default { fetch: handle };

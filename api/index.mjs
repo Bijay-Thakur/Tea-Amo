@@ -1,8 +1,6 @@
-import { loadEnv } from '../scripts/load-env.mjs';
 import { handle } from '../src/index.js';
 import { appEnv, webRequest, writeWebResponse } from '../src/node-adapter.js';
 
-loadEnv();
 const env = appEnv();
 
 export default async function handler(req, res) {

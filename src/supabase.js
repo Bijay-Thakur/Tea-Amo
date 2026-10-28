@@ -57,6 +57,13 @@ export async function authUser(env, accessToken) {
   }, 'GET');
 }
 
+export function revokeSession(env, accessToken) {
+  return call(`${env.SUPABASE_URL}/auth/v1/logout?scope=local`, {
+    apikey: env.SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${accessToken}`
+  }, 'POST');
+}
+
 export function authAdmin(env, path, { method = 'GET', body } = {}) {
   return call(new URL(`/auth/v1/admin${path}`, env.SUPABASE_URL), {
     apikey: env.SUPABASE_SERVICE_ROLE_KEY,

@@ -1,5 +1,30 @@
-<h1>Menu</h1>
-<p class="muted">This is the same menu TEA AMO uses at the café counter. Prices are in NPR.</p>
-<div class="toolbar"><input id="menuSearch" placeholder="Search the menu" aria-label="Search the menu"></div>
-<div id="menuChips" class="chips"></div>
-<div id="menuGrid" class="grid cards"></div>
+<header class="page-hero wrap">
+  <p class="eyebrow">The café menu</p>
+  <h1>Menu</h1>
+  <p class="lede">Tea, coffee, cold drinks, sheesha and food from the same list used at the counter.</p>
+</header>
+
+<section class="menu-band" id="menu" aria-labelledby="menuTitle">
+  <div class="wrap">
+    <h2 class="sr" id="menuTitle">Browse the menu</h2>
+    <div id="menuBrowser">
+      <div class="menu-tools">
+        <label class="search">
+          <span class="sr">Search the menu</span>
+          <input id="menuSearch" type="search" placeholder="Search the menu" autocomplete="off" enterkeyhint="search">
+        </label>
+        <label class="cat-select">
+          <span class="sr">Category</span>
+          <select id="menuCatSelect" aria-label="Category"></select>
+        </label>
+        <div id="menuChips" class="chips" role="toolbar" aria-label="Filter by category"></div>
+      </div>
+      <p id="menuCount" class="menu-count" aria-live="polite"></p>
+      <div id="menuGrid" class="menu-grid"></div>
+    </div>
+  </div>
+</section>
+
+<dialog id="itemDialog" class="item-dialog" aria-labelledby="dialogName">
+  <div id="dialogBody"></div>
+</dialog>

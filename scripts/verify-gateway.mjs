@@ -41,12 +41,14 @@ globalThis.fetch = async (url, options = {}) => {
   }
   if (target.pathname === '/auth/v1/token') {
     const body = JSON.parse(options.body);
+    if (target.searchParams.get('grant_type') === 'refresh_token' && body.refresh_token === 'old-refresh') return json({ access_token: 'admin-token', refresh_token: 'renewed-refresh' });
     const email = body.email;
     const user = Object.values(users).find((item) => item.email === email);
     if (!user || body.password !== 'correct-password') return json({ error_description: 'invalid' }, 400);
     const token = Object.entries(users).find(([, value]) => value.id === user.id)[0];
     return json({ access_token: token, refresh_token: `${token}-refresh` });
   }
+  if (target.pathname === '/auth/v1/logout') return new Response(null, { status: 204 });
   if (target.pathname.startsWith('/auth/v1/admin/users/')) {
     const id = target.pathname.split('/').pop();
     const user = Object.values(users).find((item) => item.id === id);
@@ -66,8 +68,9 @@ function json(data, status = 200) {
   return new Response(data == null ? '' : JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
-async function hit(pathname, { method = 'GET', cookie = '', body, role } = {}) {
+async function hit(pathname, { method = 'GET', cookie = '', body, origin } = {}) {
   const headers = { cookie };
+  if (origin) headers.origin = origin;
   if (body) headers['content-type'] = 'application/json';
   const response = await worker.fetch(new Request(`http://127.0.0.1:8791${pathname}`, {
     method,
@@ -92,7 +95,9 @@ check('old cart redirects home', cart.status === 302 && cart.location === '/');
 const about = await hit('/about');
 check('old about page redirects', about.status === 302 && about.location === '/about-contact');
 const oldItem = await hit('/menu/12');
-check('old menu item redirects into the homepage menu', oldItem.status === 302 && oldItem.location === '/?item=12#menu');
+check('old menu item opens on the menu page', oldItem.status === 302 && oldItem.location === '/menu?item=12');
+const menuPage = await hit('/menu');
+check('menu page is served', menuPage.status === 200 && menuPage.text.includes('id="menuGrid"') && !home.text.includes('id="menuGrid"'));
 const aboutPage = await hit('/about-contact');
 check('about and contact page is served', aboutPage.status === 200 && aboutPage.text.includes('About &amp; Contact') && !aboutPage.text.includes('href="/checkout"'));
 const closed = await hit('/api/public/orders', { method: 'POST', body: { fulfillment: 'pickup', customer_name: 'Bijay', customer_phone: '9800000000', items: [{ id: '1', qty: 1 }] } });
@@ -144,6 +149,21 @@ check('role on the form is not authorization', wrongRole.status === 401);
 const signedIn = await hit('/api/auth/login', { method: 'POST', body: { username: 'sanjay', password: 'correct-password', role: 'server_staff' } });
 const session = JSON.parse(signedIn.text);
 check('server login lands on /server', signedIn.status === 200 && session.home === '/server' && session.role === 'server_staff' && signedIn.cookies.some((cookie) => cookie.startsWith('tea_access=')));
+check('login keeps refresh tokens out of JavaScript', !('refresh_token' in session));
+
+profiles['server-1'].display_name = '</script><script>globalThis.stolen=true</script>';
+const serverWorkspace = await hit('/server', { cookie: 'tea_access=server-token' });
+check('server boot data cannot terminate its script element', serverWorkspace.status === 200 && !serverWorkspace.text.includes(profiles['server-1'].display_name) && serverWorkspace.text.includes('\\u003c/script\\u003e'));
+
+const crossOrigin = await hit('/api/auth/logout', { method: 'POST', cookie: 'tea_access=admin-token', origin: 'https://untrusted.example' });
+check('cross-origin mutations are rejected', crossOrigin.status === 403 && crossOrigin.cookies.length === 0);
+
+const refreshed = await hit('/api/admin/servers', { cookie: 'tea_access=expired-token; tea_refresh=old-refresh' });
+check('renewed cookies survive every authenticated route', refreshed.status === 200 && refreshed.cookies.some(cookie => cookie.startsWith('tea_refresh=renewed-refresh')));
+const logout = await hit('/api/auth/logout', { method: 'POST', cookie: 'tea_access=admin-token' });
+check('logout revokes the current refresh session', logout.status === 200 && calls.some(call => call === 'POST /auth/v1/logout?scope=local') && logout.cookies.some(cookie => cookie.includes('Max-Age=0')));
+const invalidJson = await worker.fetch(new Request('http://127.0.0.1:8791/api/auth/login', { method: 'POST', body: '{' }), env);
+check('async validation failures return a response', invalidJson.status === 400);
 
 if (checks.some((ok) => !ok)) process.exit(1);
 console.log('Gateway checks passed.');

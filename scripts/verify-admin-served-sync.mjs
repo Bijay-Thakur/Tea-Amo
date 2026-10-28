@@ -9,7 +9,7 @@ assert.ok(start >= 0 && end > start);
 const context = vm.createContext({
   state: { tables: [{ id: 't4', attention: false, seated: true }], tableOrders: { t4: { cart: [{ id: 12, qty: 1, served: 1 }], _lan_version: 2 } } },
   pendingOrders: new Set(['t4']), lanPushTimers: {}, lanApplyingRemote: false,
-  activeSection: 'pos', activeTableId: 't4', renderPOSWorkspace() {}, renderTableFloor() {}, renderDashboard() {},
+  activeSection: 'pos', activeTableId: 't4', renderPOSWorkspace() {}, renderTableFloor() {}, renderDashboard() {}, renderCart() {},
 });
 vm.runInContext(source.slice(start, end), context);
 const remote = { t4: { version: 3, order: { cart: [{ id: 12, qty: 1, served: 0 }] } } };
