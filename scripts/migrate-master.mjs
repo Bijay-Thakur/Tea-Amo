@@ -36,7 +36,10 @@ async function upsert(table, rows, onConflict) {
   }
 }
 
-const menu = (source.menu || []).map((item) => ({ id: String(item.id), name: item.name, category: item.category || 'Menu', price: Number(item.price || 0), active: item.active !== false }));
+const menu = (source.menu || []).map((item) => ({
+  id: String(item.id), name: item.name, category: item.category || 'Menu', price: Number(item.price || 0), active: item.active !== false,
+  image_url: item.image_url || item.image || item.photo || '', description: item.description || ''
+}));
 const tables = (source.tables || []).map((table) => ({
   id: String(table.id), name: table.name, seats: Math.max(1, Number(table.seats || 1)),
   x: Number(table.x || 0), y: Number(table.y || 0), w: Number(table.w || 10), h: Number(table.h || 10),
